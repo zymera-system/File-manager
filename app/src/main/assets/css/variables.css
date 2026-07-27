@@ -1,0 +1,35 @@
+/* ===== VARIÁVEIS ===== */
+:root {
+    --color-bg: #F2F2F7;
+    --color-surface: #FFFFFF;
+    --color-surface-dark: #1C1C1E;
+    --color-text: #1C1C1E;
+    --color-text-secondary: #6E6E73;
+    --color-text-muted: #AEAEB2;
+    --color-primary: #F2994A;
+    --color-primary-hover: #E08A3A;
+    --color-primary-rgb: 242, 153, 74;
+    --color-shadow: rgba(0,0,0,0.04);
+    --color-border: rgba(0,0,0,0.02);
+    --radius-card: 16px;
+    --radius-sm: 12px;
+    --radius-btn: 12px;
+    --shadow-card: 0 1px 4px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,0.08);
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tema escuro */
+.dark {
+    --color-bg: #1C1C1E;
+    --color-surface: #2C2C2E;
+    --color-text: #FFFFFF;
+    --color-text-secondary: #AEAEB2;
+    --color-text-muted: #6E6E73;
+    --color-shadow: rgba(0,0,0,0.2);
+    --color-border: rgba(255,255,255,0.05);
+    --color-primary-rgb: 242, 153, 74;
+    --shadow-card: 0 1px 4px rgba(0,0,0,0.2);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,0.3);
+}

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileManager — Logs de Erro</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/error.css">
+</head>
+<body>
+<div class="phone-frame" id="appFrame">
+    <div class="error-page active" data-page="error-log">
+        <div class="error-header">
+            <button class="back-btn" onclick="goBack()">← Voltar</button>
+            <span class="error-title">Logs de Erro</span>
+        </div>
+        <div class="error-count-bar">
+            <span class="count-text">Total: <span class="count-number" id="errorCount">0</span> erro(s)</span>
+        </div>
+        <div class="error-list" id="errorLogContainer">
+            <div class="error-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;opacity:0.3">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div class="error-empty-text">Nenhum erro registrado</div>
+            </div>
+        </div>
+        <div class="error-actions">
+            <div class="error-actions-row">
+                <button class="error-action-btn primary" onclick="window.downloadLogs()">
+                    📥 Baixar
+                </button>
+                <button class="error-action-btn secondary" onclick="window.shareLogs()">
+                    📤 Enviar
+                </button>
+            </div>
+            <button class="error-action-btn danger" onclick="window.copyAllLogs()">
+                📋 Copiar Tudo
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { renderErrorLog, exportLogs, copyAllLogs as copyAll, clearAllLogs, shareLogs as share } from './js/errorScreen.js';
+import { getLogCount } from './js/logger.js';
+
+function updateCount() {
+    const el = document.getElementById('errorCount');
+    if (el) el.textContent = getLogCount();
+}
+
+window.goBack = function() {
+    window.location.href = 'index.html';
+};
+
+window.downloadLogs = function() {
+    exportLogs();
+};
+
+window.shareLogs = function() {
+    share();
+};
+
+window.copyAllLogs = function() {
+    copyAll();
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderErrorLog();
+    updateCount();
+});
+</script>
+</body>
+</html>

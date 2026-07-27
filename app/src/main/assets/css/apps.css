@@ -1,0 +1,713 @@
+/* ========================================
+   APPS PAGE — Layout Base
+   ======================================== */
+
+.apps-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--color-bg);
+    overflow: hidden;
+}
+
+/* ========================================
+   SELECTION BAR (Topo)
+   ======================================== */
+
+.apps-selection-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    min-height: 48px;
+}
+
+.apps-selection-bar.active {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.sel-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.sel-check-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+}
+
+/* ========================================
+   SEARCH BAR
+   ======================================== */
+
+.apps-search-bar {
+    padding: 8px 16px;
+    background: var(--color-bg);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 60px;
+    overflow: hidden;
+}
+
+.apps-search-bar.hidden {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.apps-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    transition: border-color 0.2s;
+}
+
+.apps-search-wrap:focus-within {
+    border-color: var(--color-primary);
+}
+
+.apps-search-wrap svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+}
+
+.apps-search-wrap input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-family: var(--font-family);
+    color: var(--color-text);
+    outline: none;
+}
+
+.apps-search-wrap input::placeholder {
+    color: var(--color-text-secondary);
+}
+
+/* ========================================
+   TABS (Abas)
+   ======================================== */
+
+.apps-tabs {
+    display: flex;
+    padding: 12px 16px;
+    gap: 8px;
+    background: var(--color-bg);
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 60px;
+    overflow: hidden;
+    position: relative;
+}
+
+.apps-tabs.hidden {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.apps-tab {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: var(--radius-btn);
+    background: var(--color-surface);
+    border: 2px solid transparent;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.apps-tab:active {
+    transform: scale(0.97);
+}
+
+.apps-tab.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+/* ========================================
+   APPS LIST (Container de swipe)
+   ======================================== */
+
+.apps-list-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.apps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 16px;
+    height: 100%;
+    overflow-y: auto;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animações de swipe */
+.apps-list.slide-left {
+    animation: appsSlideLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.apps-list.slide-right {
+    animation: appsSlideRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes appsSlideLeft {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}
+
+@keyframes appsSlideRight {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes appsSlideInFromRight {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes appsSlideInFromLeft {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ========================================
+   APP CARD
+   ======================================== */
+
+.app-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+}
+
+.app-card:active {
+    transform: scale(0.98);
+}
+
+.app-card.selected {
+    border-color: var(--color-primary);
+    background: rgba(242, 153, 74, 0.08);
+}
+
+/* Checkbox */
+.app-checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.app-checkbox.visible {
+    display: flex;
+}
+
+.app-card.selected .app-checkbox {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.app-card.selected .app-checkbox::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Ícone */
+.app-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.app-icon.downloaded {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.app-icon.system {
+    background: linear-gradient(135deg, #6B73FF 0%, #000DFF 100%);
+}
+
+/* Info */
+.app-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.app-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-developer {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-size {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+/* ========================================
+   FAB (Floating Action Button)
+   ======================================== */
+
+.fab-container {
+    position: absolute;
+    right: 20px;
+    bottom: 24px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transform: scale(0);
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-container.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+/* Ações secundárias */
+.fab-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-container.open .fab-actions {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.fab-action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-container.open .fab-action {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Staggered animation */
+.fab-container.open .fab-action:nth-child(1) { transition-delay: 0.05s; }
+.fab-container.open .fab-action:nth-child(2) { transition-delay: 0.1s; }
+.fab-container.open .fab-action:nth-child(3) { transition-delay: 0.15s; }
+
+.fab-action-label {
+    padding: 6px 12px;
+    background: var(--color-surface);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    white-space: nowrap;
+}
+
+.fab-action-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.fab-action-btn:active {
+    transform: scale(0.9);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Botão principal */
+.fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: white;
+    box-shadow: 0 4px 16px rgba(242, 153, 74, 0.4);
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-btn:active {
+    transform: scale(0.9);
+}
+
+.fab-btn.open {
+    background: #FF3B30;
+    transform: rotate(45deg);
+    box-shadow: 0 4px 16px rgba(255, 59, 48, 0.4);
+}
+
+/* ========================================
+   MODALS (apenas estilos específicos de apps)
+   ======================================== */
+
+.modal-apps-list {
+    margin: 12px 0;
+    padding: 12px;
+    background: var(--color-bg);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.modal-app-item {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    padding: 4px 0;
+}
+
+/* ========================================
+   SHARE MODAL
+   ======================================== */
+
+.share-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.share-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--color-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.share-option:active {
+    transform: scale(0.98);
+    background: var(--color-border);
+}
+
+.share-option-icon {
+    font-size: 20px;
+}
+
+.share-option-name {
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+/* ========================================
+   TOAST / NOTIFICAÇÃO
+   ======================================== */
+
+.apps-toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--color-surface);
+    padding: 12px 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.apps-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.apps-toast.success {
+    border-left: 4px solid #34C759;
+}
+
+.apps-toast.error {
+    border-left: 4px solid #FF3B30;
+}
+
+/* ========================================
+   MODAL ORDENAR APPS
+   ======================================== */
+
+.modal-sort-apps {
+    max-width: 320px;
+}
+
+.sort-option-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.sort-option-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-primary);
+}
+
+.sort-section {
+    margin-top: 12px;
+}
+
+.sort-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.sort-view-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.sort-radio {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.sort-radio:has(input:checked) {
+    background: rgba(var(--color-primary-rgb, 52, 120, 246), 0.1);
+}
+
+.sort-radio input {
+    display: none;
+}
+
+.sort-dropdown {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    font-size: 14px;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.sort-dropdown:hover {
+    border-color: var(--color-primary);
+}
+
+/* ========================================
+   MODAL ORDENAR POR
+   ======================================== */
+
+.modal-sort-by {
+    max-width: 280px;
+}
+
+.sort-by-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sort-by-option {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--color-text);
+    transition: background 0.2s;
+}
+
+.sort-by-option:has(input:checked) {
+    background: rgba(var(--color-primary-rgb, 52, 120, 246), 0.1);
+}
+
+.sort-by-option input {
+    display: none;
+}
+
+.sort-by-option small {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+.sort-arrow {
+    font-size: 10px;
+    font-style: normal;
+    margin-left: 2px;
+}
+
+/* ========================================
+   RESPONSIVE
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 420px) {
+    .apps-tabs {
+        padding: 8px 12px;
+    }
+    .apps-tab {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    .app-card {
+        padding: 10px 12px;
+    }
+    .fab-container {
+        right: 16px;
+        bottom: 20px;
+    }
+}

@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileManager — Home</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/storage-widget.css">
+    <link rel="stylesheet" href="css/file-grid.css">
+    <link rel="stylesheet" href="css/toolbar.css">
+    <link rel="stylesheet" href="css/breadcrumb.css">
+
+    <link rel="stylesheet" href="css/selection-bar.css">
+    <link rel="stylesheet" href="css/modal.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/apps.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+<div class="phone-frame" id="appFrame">
+    <!-- Header -->
+    <div class="app-header">
+        <div class="logo"><span class="gui">File</span><span class="eti">Manager</span></div>
+        <div class="header-spacer"></div>
+        <button class="header-btn" onclick="window.fmToggleMenu()" aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+            <div class="menu-dropdown" id="globalMenu">
+                <!-- Renderizado dinamicamente por menu.js -->
+            </div>
+        </button>
+    </div>
+
+    <!-- Conteúdo -->
+    <div class="content">
+        <div class="page active" data-page="files">
+            <!-- Toolbar (oculta na Home) -->
+            <div class="file-toolbar hidden" id="fileToolbar">
+                <div class="search-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Buscar arquivos..." oninput="window.fmDebouncedRender()">
+                </div>
+                <button class="action-btn" onclick="window.fmOpenCreateModal()" aria-label="Criar novo item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px">
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Nova
+                </button>
+            </div>
+            <!-- Breadcrumb (oculto na Home) -->
+            <div class="breadcrumb hidden" id="breadcrumb">
+                <span onclick="window.fmNavigateTo('/')">📁 Raiz</span>
+            </div>
+
+            <!-- Widget de Armazenamento -->
+            <div class="storage-widget" id="storageWidget">
+                <div class="storage-content">
+                    <div class="left-panel">
+                        <div class="circle-container">
+                            <svg class="circle-svg" viewBox="0 0 100 100">
+                                <path id="gauge-bg" d="M 37 14.5 A 40 40 0 1 0 63 14.5"
+                                      fill="none" stroke="#E0E0E0" stroke-width="10" stroke-linecap="round" />
+                                <path id="gauge-fill" d="M 37 14.5 A 40 40 0 1 0 63 14.5"
+                                      fill="none" stroke="var(--color-primary)" stroke-width="10" stroke-linecap="round"
+                                      stroke-dasharray="0 251" stroke-dashoffset="0" />
+                            </svg>
+                            <div class="circle-text">
+                                <span class="count" id="apps-count">102</span>
+                                <span class="label">Apps</span>
+                            </div>
+                        </div>
+                        <div class="disponivel-row">
+                            <span class="disponivel-label">Disponível</span>
+                            <span class="disponivel-value" id="disponivel-value">8,21 GB</span>
+                        </div>
+                    </div>
+                    <div class="right-panel">
+                        <div class="stat-group">
+                            <div class="stat-header">
+                                <div class="dot-wrapper"><span class="dot total"></span></div>
+                                <span class="stat-label">Total</span>
+                            </div>
+                            <span class="stat-value" id="total-value">247,90 GB</span>
+                        </div>
+                        <div class="stat-group">
+                            <div class="stat-header">
+                                <div class="dot-wrapper"><span class="dot livre"></span></div>
+                                <span class="stat-label">Livre</span>
+                            </div>
+                            <span class="stat-value" id="livre-value">8,21 GB</span>
+                        </div>
+                        <div class="stat-group">
+                            <div class="stat-header">
+                                <div class="dot-wrapper"><span class="dot usado"></span></div>
+                                <span class="stat-label">Usado</span>
+                            </div>
+                            <span class="stat-value" id="usado-value">181,69 GB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grade de ícones -->
+            <div class="file-grid" id="fileGrid"></div>
+        </div>
+
+        <!-- Página Configurações -->
+        <div class="page" data-page="settings">
+            <div class="settings-title"><button class="back-btn" onclick="window.fmGoBack()">← Voltar</button> Configurações</div>
+            <div class="settings-group">
+                <div class="settings-group-header">GERAL</div>
+                <div class="settings-item">
+                    <span class="settings-item-label regular">Tema escuro</span>
+                    <div class="toggle on" data-setting="theme" onclick="window.fmToggleTheme(this)"><div class="toggle-knob"></div></div>
+                </div>
+                <div class="settings-item">
+                    <span class="settings-item-label regular">Mostrar extensões</span>
+                    <div class="toggle on" data-setting="extensions" onclick="window.fmToggleExtensions(this)"><div class="toggle-knob"></div></div>
+                </div>
+                <div class="settings-item">
+                    <span class="settings-item-label regular">Resetar preferências</span>
+                    <button class="settings-reset-btn" onclick="window.fmResetPreferences()">Redefinir</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Página Lixeira -->
+        <div class="page" data-page="trash">
+            <div class="settings-title"><button class="back-btn" onclick="window.fmGoBack()">← Voltar</button> 🗑️ Lixeira</div>
+            <div class="trash-info" id="trashInfo">
+                <span id="trashCount">0 item(ns)</span>
+                <span class="trash-retention">Permanece por 30 dias</span>
+            </div>
+            <div class="trash-list" id="trashList"></div>
+            <div class="trash-actions" id="trashActions">
+                <button class="trash-clear-btn" onclick="window.fmClearTrash()">🗑️ Limpar lixeira</button>
+            </div>
+        </div>
+
+        <!-- Página Aplicativos -->
+        <div class="page" data-page="apps">
+            <div class="apps-page">
+                <!-- Selection Bar -->
+                <div class="apps-selection-bar" id="appsSelectionBar">
+                    <div class="sel-info">
+                        <div class="sel-check-icon">✓</div>
+                        <span class="sel-count">0 selecionados</span>
+                    </div>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="apps-search-bar" id="appsSearchBar">
+                    <div class="apps-search-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" id="appsSearchInput" placeholder="Digite o nome do aplicativo" oninput="window.fmFilterApps(this.value)">
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="apps-tabs" id="appsTabs">
+                    <div class="apps-tab active" data-tab="downloaded" onclick="window.fmSwitchTab('downloaded')">Apps baixados</div>
+                    <div class="apps-tab" data-tab="system" onclick="window.fmSwitchTab('system')">Apps sistema</div>
+                </div>
+
+                <!-- Lista de Apps -->
+                <div class="apps-list-container" id="appsListContainer">
+                    <div class="apps-list" id="appsList"></div>
+                </div>
+
+                <!-- FAB -->
+                <div class="fab-container" id="appsFab">
+                    <div class="fab-actions" id="fabActions">
+                        <div class="fab-action">
+                            <span class="fab-action-label">Backup APK</span>
+                            <button class="fab-action-btn" onclick="window.fmBackupApk()">📦</button>
+                        </div>
+                        <div class="fab-action">
+                            <span class="fab-action-label">Compartilhar</span>
+                            <button class="fab-action-btn" onclick="window.fmShareApp()">📤</button>
+                        </div>
+                        <div class="fab-action">
+                            <span class="fab-action-label">Desinstalar</span>
+                            <button class="fab-action-btn" onclick="window.fmUninstallApp()">🗑️</button>
+                        </div>
+                    </div>
+                    <button class="fab-btn" id="fabBtn" onclick="window.fmToggleFab()">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Item Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-title" id="modal-title">Criar item</div>
+            <div class="create-name-row" id="createNameRow">
+                <input class="modal-input create-name-input" id="createItemName" placeholder="Nome da pasta..." autofocus>
+                <div class="create-ext-select" id="createFileExtBtn">
+                    <span class="create-ext-selected" id="extSelectedLabel">.html</span>
+                    <input class="create-ext-custom-input" id="createFileExtCustom" placeholder=".ext" style="display:none;" onclick="event.stopPropagation()">
+                    <span class="create-ext-arrow" onclick="window.fmToggleExtDropdown()">▾</span>
+                </div>
+                <div class="create-ext-dropdown" id="extDropdown"></div>
+            </div>
+            <div class="create-type-group">
+                <label><input type="radio" name="createType" value="folder" checked onchange="window.fmHandleTypeChange()"> Pasta</label>
+                <label><input type="radio" name="createType" value="file" onchange="window.fmHandleTypeChange()"> Arquivo</label>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseCreateModal()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="window.fmCreateItem()">Criar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal-overlay" id="renameModalOverlay">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rename-modal-title">
+            <div class="modal-title" id="rename-modal-title">Renomear</div>
+            <input class="modal-input" id="renameInput" placeholder="Novo nome..." autofocus>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseRenameModal()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="window.fmConfirmRename()">Renomear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModalOverlay">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+            <div class="modal-title" id="delete-modal-title">Confirmar exclusão</div>
+            <div class="delete-summary">
+                <div class="delete-summary-row">
+                    <span class="delete-icon">📁</span>
+                    <span>Pastas: <strong id="deleteFolderCount">0</strong></span>
+                </div>
+                <div class="delete-summary-row">
+                    <span class="delete-icon">📄</span>
+                    <span>Arquivos: <strong id="deleteFileCount">0</strong></span>
+                </div>
+                <div class="delete-warning">Pastas podem conter arquivos internos.</div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseDeleteModal()">Cancelar</button>
+                <button class="modal-btn confirm delete-confirm" onclick="window.fmConfirmDelete()">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Desinstalar App -->
+    <div class="modal-overlay" id="uninstallModal">
+        <div class="modal-card">
+            <div class="modal-title">⚠️ Desinstalar app?</div>
+            <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0;">Os seguintes apps serão desinstalados:</p>
+            <div class="modal-apps-list" id="uninstallAppsList"></div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseAppsModal('uninstall')">Cancelar</button>
+                <button class="modal-btn confirm" onclick="window.fmConfirmUninstall()">Desinstalar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Compartilhar App -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal-card">
+            <div class="modal-title">📤 Compartilhar app</div>
+            <div class="share-options">
+                <div class="share-option" onclick="window.fmShareVia('bluetooth')">
+                    <span class="share-option-icon">📱</span>
+                    <span class="share-option-name">Bluetooth</span>
+                </div>
+                <div class="share-option" onclick="window.fmShareVia('whatsapp')">
+                    <span class="share-option-icon">💬</span>
+                    <span class="share-option-name">WhatsApp</span>
+                </div>
+                <div class="share-option" onclick="window.fmShareVia('drive')">
+                    <span class="share-option-icon">☁️</span>
+                    <span class="share-option-name">Drive</span>
+                </div>
+                <div class="share-option" onclick="window.fmShareVia('outros')">
+                    <span class="share-option-icon">📋</span>
+                    <span class="share-option-name">Outros</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseAppsModal('share')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Global -->
+    <div class="global-toast" id="globalToast"></div>
+
+    <!-- Toast Apps -->
+    <div class="apps-toast" id="appsToast"></div>
+
+    <!-- ========================================
+         POPUP OVERLAY — Scan / Confirmação / "Tem certeza?"
+         ======================================== -->
+    <div class="popup-overlay" id="popupOverlay">
+        <div class="popup-card" id="popupCard"></div>
+    </div>
+
+    <!-- ========================================
+         LOADING OVERLAY — Sistema Padrão
+         ======================================== -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-card">
+            <div class="loading-dots" id="loadingDots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <div class="loading-icon" id="loadingIcon" style="display:none"></div>
+            <div class="loading-title" id="loadingTitle"></div>
+            <div class="loading-info" id="loadingInfo"></div>
+            <div class="loading-progress-wrap">
+                <div class="loading-progress-bar">
+                    <div class="loading-progress-fill" id="loadingFill"></div>
+                </div>
+                <div class="loading-percentage" id="loadingPercentage">0%</div>
+            </div>
+            <div class="loading-count" id="loadingCount"></div>
+            <button class="loading-cancel" id="loadingCancelBtn">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmação de Cancelamento -->
+    <div class="modal-overlay" id="cancelConfirmModal">
+        <div class="modal-card">
+            <div class="modal-title">Cancelar operação?</div>
+            <p class="cancel-confirm-text">
+                A operação será interrompida e os arquivos processados serão verificados.
+            </p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmResumeOperation()">Continuar</button>
+                <button class="modal-btn confirm" onclick="window.fmConfirmCancel()" style="background:#FF3B30">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Resultado da Reversão -->
+    <div class="modal-overlay" id="reversalResultModal">
+        <div class="modal-card">
+            <div class="modal-title" id="reversalTitle">Arquivos transferidos</div>
+            <div class="reversal-info" id="reversalInfo"></div>
+            <div class="reversal-options">
+                <label class="reversal-option">
+                    <input type="radio" name="reversal" value="revert" checked>
+                    <span>Voltar ao local original</span>
+                </label>
+                <label class="reversal-option">
+                    <input type="radio" name="reversal" value="keep">
+                    <span>Manter no destino</span>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn confirm" onclick="window.fmConfirmReversal()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ordenar Apps -->
+    <div class="modal-overlay" id="sortAppsModal">
+        <div class="modal-card modal-sort-apps">
+            <div class="modal-title">Ordenar aplicativos</div>
+            
+            <label class="sort-option-toggle">
+                <input type="checkbox" id="applyToAllFolders">
+                Aplicar a todas as pastas
+            </label>
+            
+            <div class="sort-section">
+                <div class="sort-section-title">Visualizar</div>
+                <div class="sort-view-options">
+                    <label class="sort-radio"><input type="radio" name="viewMode" value="list"> ☐ Lista</label>
+                    <label class="sort-radio"><input type="radio" name="viewMode" value="blocks"> ⠿ Blocos</label>
+                    <label class="sort-radio"><input type="radio" name="viewMode" value="detailed" checked> ≣ Detalhada</label>
+                    <label class="sort-radio"><input type="radio" name="viewMode" value="normal"> 🖼 Normal</label>
+                    <label class="sort-radio"><input type="radio" name="viewMode" value="large"> 🖼 Grande</label>
+                </div>
+            </div>
+            
+            <div class="sort-section">
+                <div class="sort-section-title">Ordenar</div>
+                <button class="sort-dropdown" id="sortAppsDropdown" onclick="window.fmOpenSortByModal()">
+                    <span id="sortAppsCurrentLabel">Data <i class="sort-arrow">▼</i></span>
+                    <span>▾</span>
+                </button>
+            </div>
+            
+            <div class="sort-section">
+                <label class="sort-option-toggle">
+                    <input type="checkbox" id="showHiddenApps" checked>
+                    Mostrar arquivos ocultos
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseSortAppsModal()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="window.fmApplySortApps()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ordenar Por -->
+    <div class="modal-overlay" id="sortByModal">
+        <div class="modal-card modal-sort-by">
+            <div class="modal-title">Ordenar por</div>
+            <div class="sort-by-options">
+                <label class="sort-by-option"><input type="radio" name="sortBy" value="date-asc" checked><span>Data <i class="sort-arrow">▼</i></span><small>Menor → Maior</small></label>
+                <label class="sort-by-option"><input type="radio" name="sortBy" value="date-desc"><span>Data <i class="sort-arrow">▲</i></span><small>Maior → Menor</small></label>
+                <label class="sort-by-option"><input type="radio" name="sortBy" value="name-asc"><span>Nome A-Z</span></label>
+                <label class="sort-by-option"><input type="radio" name="sortBy" value="name-desc"><span>Nome Z-A</span></label>
+                <label class="sort-by-option"><input type="radio" name="sortBy" value="size-asc"><span>Tamanho <i class="sort-arrow">▼</i></span><small>Menor → Maior</small></label>
+                <label class="sort-by-option"><input type="radio" name="sortBy" value="size-desc"><span>Tamanho <i class="sort-arrow">▲</i></span><small>Maior → Menor</small></label>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn confirm" onclick="window.fmConfirmSortBy()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conflict Resolution Modal -->
+    <div class="modal-overlay" id="conflictModal">
+        <div class="modal-card">
+            <div class="modal-title">Arquivo já existe</div>
+            <div class="conflict-info">
+                <div class="conflict-row">
+                    <span class="conflict-label">Nome:</span>
+                    <strong id="conflictFileName"></strong>
+                </div>
+                <div class="conflict-row">
+                    <span class="conflict-label">Origem:</span>
+                    <span id="conflictSourcePath" class="conflict-dest-text"></span>
+                </div>
+                <div class="conflict-row">
+                    <span class="conflict-label">Destino:</span>
+                    <span id="conflictDestPath" class="conflict-dest-text"></span>
+                </div>
+            </div>
+            <div class="conflict-options">
+                <label class="conflict-option">
+                    <input type="radio" name="conflictAction" value="skip" checked>
+                    <span>Pular</span>
+                </label>
+                <label class="conflict-option">
+                    <input type="radio" name="conflictAction" value="replace">
+                    <span>Sobrescrever</span>
+                </label>
+                <label class="conflict-option">
+                    <input type="radio" name="conflictAction" value="rename">
+                    <span>Renomear</span>
+                </label>
+            </div>
+            <label class="conflict-apply-all">
+                <input type="checkbox" id="conflictApplyAll">
+                Aplicar a todos os conflitos
+            </label>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCancelConflict()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="window.fmConfirmConflict()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Duplication Warning Modal -->
+    <div class="modal-overlay" id="duplicationModal">
+        <div class="modal-card">
+            <div class="modal-title">Aviso de duplicação interna</div>
+            <div class="modal-message" id="duplicationMessage"></div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmCloseDuplication(false)">Cancelar</button>
+                <button class="modal-btn confirm" onclick="window.fmCloseDuplication(true)">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel Clipboard Modal -->
+    <div class="modal-overlay" id="cancelClipboardModal">
+        <div class="modal-card">
+            <div class="modal-title">Cancelar operação?</div>
+            <p class="modal-message">Você tem uma operação de <strong id="cancelClipboardMode"></strong> em andamento.</p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="window.fmConfirmCancelClipboard(false)">Manter</button>
+                <button class="modal-btn confirm delete-confirm" onclick="window.fmConfirmCancelClipboard(true)">Cancelar operação</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selection Bar (oculta por padrão) -->
+    <div class="selection-bar" id="selectionBar">
+        <div class="selection-status">
+            <span class="selection-count" id="selectionCount">0 itens selecionados</span>
+            <button class="selection-status-btn" id="selectAllBtn" aria-label="Selecionar tudo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+                Tudo
+            </button>
+            <button class="selection-status-btn" id="rangeSelectBtn" aria-label="Selecionar intervalo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Intervalo
+            </button>
+        </div>
+        <div class="selection-actions">
+            <button class="sel-btn" onclick="window.fmSelectionAction('copy')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span class="sel-btn-label">Copiar</span>
+            </button>
+            <button class="sel-btn" onclick="window.fmSelectionAction('move')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                <span class="sel-btn-label">Mover</span>
+            </button>
+            <button class="sel-btn" onclick="window.fmSelectionAction('rename')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                <span class="sel-btn-label">Renomear</span>
+            </button>
+            <button class="sel-btn sel-btn-delete" onclick="window.fmSelectionAction('delete')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span class="sel-btn-label">Excluir</span>
+            </button>
+            <button class="sel-btn sel-btn-more" id="moreActionsBtn" onclick="window.fmToggleMoreMenu()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                <span class="sel-btn-label">Mais</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Selection More Menu -->
+    <div class="selection-more-menu" id="selectionMoreMenu">
+        <div class="menu-item" onclick="window.fmSelectionAction('share')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Compartilhar
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('favorite')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Favoritar
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('pin')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><path d="M12 2L12 22"/><path d="M5 12H2"/><path d="M22 12h-3"/><path d="M12 2l4 4"/><path d="M12 2l-4 4"/></svg>
+            Fixar
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('compress')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+            Compactar
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('extract')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M12 12v5"/><path d="M9 15l3 3 3-3"/></svg>
+            Extrair
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('properties')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Propriedades
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('shortcut')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Criar atalho
+        </div>
+        <div class="menu-item" onclick="window.fmSelectionAction('duplicate')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-text-secondary)"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Duplicar
+        </div>
+        <div class="menu-divider"></div>
+        <div class="menu-item menu-item-cancel" onclick="window.fmClearSelection()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:#FF3B30"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Cancelar seleção
+        </div>
+    </div>
+
+    <!-- Clipboard Bar (oculta por padrão) -->
+    <div class="clipboard-bar" id="clipboardBar">
+        <div class="clipboard-status">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:var(--color-primary);flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <div class="clipboard-info">
+                <span class="clipboard-count" id="clipboardCount"></span>
+                <span class="clipboard-origin" id="clipboardOrigin"></span>
+            </div>
+        </div>
+        <div class="clipboard-actions">
+            <button class="sel-btn" onclick="window.fmCancelClipboard()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <span class="sel-btn-label">Cancelar</span>
+            </button>
+            <button class="sel-btn sel-btn-confirm" id="clipboardConfirmBtn" onclick="window.fmClipboardConfirm()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span class="sel-btn-label" id="clipboardActionLabel">Colar</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

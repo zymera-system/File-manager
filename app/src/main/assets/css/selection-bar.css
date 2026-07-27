@@ -1,0 +1,244 @@
+/* ===== SELECTION BAR ===== */
+.selection-bar {
+    display: none;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    z-index: 9999;
+    animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.selection-bar.active {
+    display: flex;
+}
+@keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Status row */
+.selection-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 0.5px solid var(--color-border);
+}
+.selection-count {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    flex: 1;
+}
+.selection-status-btn {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-family);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.selection-status-btn:hover {
+    background: rgba(0,0,0,0.04);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+.selection-status-btn.active {
+    background: rgba(242, 153, 74, 0.1);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+.selection-status-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Actions row */
+.selection-actions {
+    display: flex;
+    align-items: center;
+    padding: 8px 8px;
+    gap: 2px;
+    overflow-x: auto;
+}
+.sel-btn {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--color-text-secondary);
+    font-family: var(--font-family);
+}
+.sel-btn:hover {
+    background: rgba(0,0,0,0.04);
+    color: var(--color-text);
+}
+.dark .sel-btn:hover {
+    background: rgba(255,255,255,0.05);
+}
+.sel-btn:active {
+    transform: scale(0.92);
+}
+.sel-btn svg {
+    width: 23px;
+    height: 23px;
+    flex-shrink: 0;
+}
+.sel-btn-label {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.sel-btn-delete {
+    color: #FF3B30;
+}
+.sel-btn-delete:hover {
+    background: rgba(255, 59, 48, 0.08);
+}
+
+/* More button */
+.sel-btn-more {
+    flex: 0 0 auto;
+    min-width: 44px;
+}
+.sel-btn-more svg {
+    width: 25px;
+    height: 25px;
+}
+
+/* More menu popup */
+.selection-more-menu {
+    position: absolute;
+    bottom: 120px;
+    right: 16px;
+    background: var(--color-surface);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    z-index: 10000;
+    min-width: 200px;
+    padding: 6px 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.selection-more-menu.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+.selection-more-menu .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 18px;
+    font-size: 15px;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.selection-more-menu .menu-item:hover {
+    background: rgba(0,0,0,0.04);
+}
+.dark .selection-more-menu .menu-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+.selection-more-menu .menu-divider {
+    height: 0.5px;
+    background: var(--color-text-muted);
+    margin: 4px 0;
+    opacity: 0.3;
+}
+.selection-more-menu .menu-item-cancel {
+    color: #FF3B30;
+}
+
+/* ===== CLIPBOARD BAR ===== */
+.clipboard-bar {
+    display: none;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    z-index: 9999;
+    animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.clipboard-bar.active {
+    display: flex;
+}
+.clipboard-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid var(--color-border);
+}
+.clipboard-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+.clipboard-count {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+.clipboard-origin {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    word-break: break-all;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.clipboard-actions {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    gap: 12px;
+}
+.clipboard-actions .sel-btn {
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 0;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.04);
+}
+.dark .clipboard-actions .sel-btn {
+    background: rgba(255,255,255,0.06);
+}
+.sel-btn-confirm {
+    background: var(--color-primary) !important;
+    color: white !important;
+}
+.sel-btn-confirm:hover {
+    opacity: 0.9;
+}
+.dark .sel-btn-confirm {
+    background: var(--color-primary) !important;
+    color: white !important;
+}

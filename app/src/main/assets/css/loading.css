@@ -1,0 +1,558 @@
+/* ========================================
+   POPUP OVERLAY — Scan / Confirmação / "Tem certeza?"
+   ======================================== */
+
+.popup-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 11200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 32px;
+    transition: opacity 0.3s ease;
+}
+
+.popup-overlay.open {
+    display: flex;
+}
+
+.popup-overlay.hiding {
+    opacity: 0;
+}
+
+.popup-card {
+    background: var(--color-surface);
+    border-radius: 24px;
+    padding: 32px 28px 23px;
+    width: 85%;
+    max-width: 322px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: modalIn 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.popup-card.phase-change {
+    animation: popupPhaseIn 0.25s ease;
+}
+
+@keyframes popupPhaseIn {
+    from { opacity: 0.6; transform: scale(0.93); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.popup-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    justify-content: center;
+    width: 100%;
+}
+
+.popup-btn {
+    padding: 10px 21px;
+    border-radius: var(--radius-btn);
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+    max-width: 140px;
+}
+
+.popup-btn.ocultar {
+    background: var(--color-border);
+    color: var(--color-text);
+}
+
+.popup-btn.ocultar:hover {
+    background: #ccc;
+}
+
+.popup-btn.cancelar {
+    background: transparent;
+    color: #FF5252;
+    border: 1px solid #FF5252;
+}
+
+.popup-btn.cancelar:hover {
+    background: rgba(255, 82, 82, 0.06);
+}
+
+.popup-btn.confirmar {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+.popup-btn.confirmar:hover {
+    opacity: 0.85;
+}
+
+/* ===== SCAN (Fase 1) ===== */
+
+.scan-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+}
+
+.scan-pulse {
+    width: 44px;
+    height: 44px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.scan-pulse .ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 2.5px solid var(--color-primary);
+    border-radius: 50%;
+    animation: pulseRing 2s ease-out infinite;
+}
+
+.scan-pulse .ring:nth-child(2) {
+    animation-delay: 0.6s;
+}
+
+.scan-pulse .ring:nth-child(3) {
+    animation-delay: 1.2s;
+}
+
+.scan-pulse .center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-primary);
+}
+
+@keyframes pulseRing {
+    0% { transform: scale(0.5); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+}
+
+.scan-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.scan-path {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    min-height: 16px;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 6px 12px;
+    border-radius: 6px;
+    width: 100%;
+}
+
+/* ===== CONFIRMAÇÃO (Fase 2) ===== */
+
+.confirm-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.confirm-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    padding: 8px 0;
+}
+
+.confirm-summary-item {
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+}
+
+.confirm-total {
+    font-size: 16px;
+    font-weight: 700;
+    padding-top: 4px;
+    border-top: 1px solid var(--color-border);
+    margin-top: 4px;
+    width: 100%;
+}
+
+.confirm-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: background 0.2s;
+    margin-top: 2px;
+}
+
+.confirm-checkbox:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.confirm-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+/* ===== "TEM CERTEZA?" ===== */
+
+.sure-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.sure-icon {
+    width: 44px;
+    height: 44px;
+    color: #FF5252;
+}
+
+.sure-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.sure-title {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.sure-warning {
+    font-size: 13px;
+    color: #FF5252;
+    background: rgba(255, 82, 82, 0.04);
+    padding: 8px 12px;
+    border-radius: 8px;
+    line-height: 1.4;
+    width: 100%;
+}
+
+.sure-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.sure-checkbox:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.sure-checkbox input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+/* ========================================
+   LOADING OVERLAY — Sistema Padrão
+   ======================================== */
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 11000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 32px;
+}
+
+.loading-overlay.open {
+    display: flex;
+}
+
+.loading-card {
+    background: var(--color-surface);
+    border-radius: 24px;
+    padding: 36px 28px;
+    width: 85%;
+    max-width: 345px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: modalIn 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* ========================================
+   DOTS ANIMADOS
+   ======================================== */
+
+.loading-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.loading-dots .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: loading 1.2s infinite ease-in-out;
+}
+
+.loading-dots .dot:nth-child(1) {
+    background: #2196F3;
+    animation-delay: 0s;
+}
+
+.loading-dots .dot:nth-child(2) {
+    background: #00E676;
+    animation-delay: .15s;
+}
+
+.loading-dots .dot:nth-child(3) {
+    background: #ff007a;
+    animation-delay: .30s;
+}
+
+@keyframes loading {
+    0%, 100% {
+        transform: translateY(0) scale(.7);
+        opacity: .5;
+        box-shadow: 0 0 0 rgba(0,0,0,0);
+    }
+    50% {
+        transform: translateY(-14px) scale(1.2);
+        opacity: 1;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+}
+
+/* ========================================
+   SVG ÍCONE POR TIPO
+   ======================================== */
+
+.loading-icon {
+    width: 55px;
+    height: 55px;
+    margin-bottom: 18px;
+    color: var(--color-primary);
+}
+
+.loading-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ========================================
+   TEXTO E INFORMAÇÕES
+   ======================================== */
+
+.loading-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.loading-info {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    white-space: pre-line;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    max-height: 120px;
+    overflow-y: auto;
+    width: 100%;
+}
+
+/* ========================================
+   BARRA DE PROGRESSO
+   ======================================== */
+
+.loading-progress-wrap {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.loading-progress-bar {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--color-border);
+    overflow: hidden;
+}
+
+.loading-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--color-primary);
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.loading-percentage {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-top: 6px;
+}
+
+.loading-count {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+}
+
+/* ========================================
+   BOTÃO CANCELAR
+   ======================================== */
+
+.loading-cancel {
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 16px;
+    font-weight: 500;
+    font-family: var(--font-family);
+    padding: 8px 16px;
+    margin-top: 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.loading-cancel:hover {
+    color: var(--color-text);
+    background: rgba(0, 0, 0, 0.04);
+}
+
+/* ========================================
+   MODAL DE CONFIRMAÇÃO DE CANCELAMENTO
+   ======================================== */
+
+#cancelConfirmModal {
+    z-index: 12000;
+}
+
+.cancel-confirm-text {
+    font-size: 15px;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* ========================================
+   MODAL DE RESULTADO DA REVERSÃO
+   ======================================== */
+
+.reversal-info {
+    font-size: 15px;
+    color: var(--color-text-secondary);
+    margin: 12px 0;
+    line-height: 1.5;
+}
+
+.reversal-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.reversal-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.reversal-option:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.reversal-option:has(input:checked) {
+    background: rgba(var(--color-primary-rgb, 52, 120, 246), 0.08);
+    border-color: var(--color-primary);
+}
+
+.reversal-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.reversal-option span {
+    flex: 1;
+}
+
+/* ========================================
+   RESPONSIVIDADE
+   ======================================== */
+
+@media (max-width: 360px) {
+    .loading-card {
+        padding: 28px 18px;
+        width: 90%;
+    }
+
+    .loading-title {
+        font-size: 16px;
+    }
+
+    .loading-info {
+        font-size: 13px;
+    }
+}

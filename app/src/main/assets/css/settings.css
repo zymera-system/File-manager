@@ -1,0 +1,213 @@
+/* ===== SETTINGS ===== */
+.settings-page { padding: 0; }
+.settings-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.back-btn {
+    background: var(--color-surface);
+    border: none;
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-family);
+    color: var(--color-primary);
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.back-btn:hover {
+    transform: scale(1.04);
+    box-shadow: var(--shadow-hover);
+}
+.back-btn:active {
+    transform: scale(0.95);
+}
+.settings-group {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    margin-bottom: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-border);
+}
+.settings-group-header {
+    padding: 14px 14px 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.5px;
+}
+.settings-item {
+    display: flex;
+    align-items: center;
+    padding: 16px 14px;
+    border-top: 0.5px solid var(--color-border);
+    transition: background 0.2s;
+}
+.settings-item:first-of-type { border-top: none; }
+.settings-item:hover { background: rgba(0,0,0,0.01); }
+.settings-item-label {
+    flex: 1;
+    font-size: 17px;
+    color: var(--color-text);
+}
+.settings-item-label.regular { font-weight: 400; }
+.toggle {
+    width: 59px;
+    height: 36px;
+    border-radius: 18px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    flex-shrink: 0;
+    background: #E5E5EA;
+}
+.toggle.on { background: #34C759; }
+.toggle-knob {
+    width: 31px;
+    height: 31px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    top: 2px;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.toggle:hover .toggle-knob { transform: scale(1.02); }
+.toggle.on .toggle-knob { left: 25px; }
+.toggle.off .toggle-knob { left: 3px; }
+
+/* ===== TRASH PAGE ===== */
+.trash-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+.trash-info #trashCount {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+.trash-retention {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+.trash-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.trash-item {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-border);
+}
+.trash-item-icon {
+    font-size: 23px;
+    width: 41px;
+    height: 41px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 59, 48, 0.1);
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.trash-item-info {
+    flex: 1;
+    min-width: 0;
+}
+.trash-item-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.trash-item-meta {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+.trash-item-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.trash-item-actions button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+.trash-item-actions button:hover {
+    background: rgba(0,0,0,0.04);
+}
+.trash-restore-btn { color: #34C759; }
+.trash-delete-btn { color: #FF3B30; }
+.trash-actions {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+.trash-clear-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-btn);
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    background: #FF3B30;
+    color: white;
+    transition: background 0.2s;
+}
+.trash-clear-btn:hover { background: #D32F2F; }
+.trash-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+    font-size: 16px;
+}
+
+/* ===== RESET BUTTON ===== */
+.settings-reset-btn {
+    background: transparent;
+    border: 1px solid #FF3B30;
+    color: #FF3B30;
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.settings-reset-btn:hover {
+    background: rgba(255, 59, 48, 0.08);
+}

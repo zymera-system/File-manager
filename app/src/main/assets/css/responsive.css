@@ -1,0 +1,16 @@
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 420px) {
+    .storage-content { padding: 20px; }
+    .circle-container { width: 110px; height: 110px; }
+    .circle-text .count { font-size: 28px; }
+    .circle-text .label { font-size: 14px; }
+    .stat-label { font-size: 15px; }
+    .stat-value { font-size: 13px; }
+    .right-panel { gap: 12px; }
+}
+@media (max-width: 360px) {
+    .storage-content { flex-direction: column; align-items: center; gap: 12px; }
+    .right-panel { align-items: center; }
+    .stat-header { justify-content: center; }
+    .stat-value { padding-left: 0; text-align: center; }
+}

@@ -1,0 +1,173 @@
+/* ===== GRADE DE ÍCONES ===== */
+.file-grid { display: flex; flex-direction: column; gap: 6px; }
+.file-grid .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+    width: 100%;
+}
+.file-grid .icon-grid .icon-item {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: 18px 8px 12px;
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    min-width: 0;
+}
+.file-grid .icon-grid .icon-item:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-hover);
+}
+.file-grid .icon-grid .icon-item .icon-svg {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px;
+    height: 70px;
+}
+.file-grid .icon-grid .icon-item .icon-svg svg { width: 100%; height: 100%; }
+.file-grid .icon-grid .icon-item .icon-label {
+    width: 100%;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--color-text);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s;
+    flex-shrink: 0;
+}
+
+/* ===== ITEM DE ARQUIVO ===== */
+.file-item {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+}
+.file-item:hover {
+    transform: translateX(3px);
+    box-shadow: var(--shadow-hover);
+}
+.file-icon {
+    width: 51px;
+    height: 51px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: rgba(0,0,0,0.04);
+    color: var(--color-text);
+    transition: background 0.3s, transform 0.2s;
+}
+.file-item:hover .file-icon { transform: scale(1.05); }
+.file-icon.folder {
+    background: rgba(242, 153, 74, 0.15);
+    color: var(--color-primary);
+}
+.file-icon.file {
+    background: rgba(33, 150, 243, 0.12);
+    color: #2196F3;
+}
+.file-info { flex: 1; min-width: 0; }
+.file-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.file-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+.file-meta span { white-space: nowrap; }
+.file-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.file-actions button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 0.2s, color 0.2s;
+    color: var(--color-text-muted);
+}
+.file-actions button:hover {
+    background: rgba(0,0,0,0.04);
+    color: var(--color-text);
+}
+.dark .file-actions button:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+}
+.file-actions button svg { width: 21px; height: 21px; }
+
+/* ===== FILE ITEM SELECTED ===== */
+.file-item.selected {
+    background: rgba(242, 153, 74, 0.1);
+    border-color: var(--color-primary);
+    transition: background 0.15s, border-color 0.15s;
+}
+.file-item.selected .file-icon {
+    background: var(--color-primary);
+    color: white;
+}
+.file-item.selected .file-name {
+    color: var(--color-primary);
+}
+.file-item.range-preview {
+    border-color: var(--color-text-muted);
+    opacity: 0.6;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    color: var(--color-text-muted);
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+.empty-state-text {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
