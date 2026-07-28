@@ -115,7 +115,23 @@ public class StorageBridge {
      */
     @JavascriptInterface
     public String getSDCardPath() {
-        // Verificar caminhos conhecidos
+        // Método 1: StorageVolume API (Android N+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            List<StorageVolume> volumes = storageManager.getStorageVolumes();
+            for (StorageVolume volume : volumes) {
+                if (volume.isRemovable()) {
+                    File dir = volume.getDirectory();
+                    if (dir != null && dir.exists() && dir.canRead()) {
+                        String uuid = volume.getUuid();
+                        if (uuid != null && !uuid.equals("primary")) {
+                            return dir.getAbsolutePath();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Método 2: Verificar caminhos conhecidos (fallback)
         String[] sdPaths = {
             "/storage/sdcard1",
             "/storage/extSdCard",
@@ -135,7 +151,7 @@ public class StorageBridge {
             }
         }
 
-        // Verificar /storage
+        // Método 3: Verificar /storage
         File storageDir = new File("/storage");
         File[] files = storageDir.listFiles();
         if (files != null) {
@@ -346,17 +362,26 @@ public class StorageBridge {
     /**
      * Ejeta (desmonta) um dispositivo de armazenamento
      * @param path Caminho do dispositivo
-     * @return true se bem-sucedido
+     * @return string JSON com resultado
      */
     @JavascriptInterface
-    public boolean ejectStorage(String path) {
+    public String ejectStorage(String path) {
         try {
-            // Em Android, não é possível ejetar programaticamente
-            // O usuário precisa usar as configurações do sistema
-            // Retornar false para indicar que não é possível
-            return false;
+            // Em Android, não é possível ejetar programaticamente sem permissões system-level.
+            // Guiar o usuário com instruções.
+            if (activity instanceof MainActivity) {
+                String script = "if (window.fmShowEjectInstructions) window.fmShowEjectInstructions('"
+                    + (path != null ? path.replace("'", "\\'") : "")
+                    + "');";
+                ((MainActivity) activity).evaluateJavascript(script);
+            }
+            JSONObject result = new JSONObject();
+            result.put("success", false);
+            result.put("manual", true);
+            result.put("message", "Para ejetar, vá em Configurações > Armazenamento > Desmontar");
+            return result.toString();
         } catch (Exception e) {
-            return false;
+            return errorJson("Erro: " + e.getMessage());
         }
     }
 

@@ -80,51 +80,146 @@ function hasBridge() {
 }
 
 /**
- * getFiles — obtém lista de arquivos/pastas de um diretório.
- * 
- * Quando a bridge está disponível, chama FileBridge.listFiles() com o caminho
- * resolvido (virtual → real). Caso contrário, usa o fallback mock.
- * 
- * A bridge retorna JSON com propriedades:
- *   { name, type ("folder"|"file"), path, size (string formatada), date (string), canRead, canWrite, hidden }
- * 
- * Esses dados já vêm no formato correto para a UI, então passamos direto.
+ * hasPagedBridge — verifica se a bridge suporta paginação.
  */
-export function getFiles(path) {
-    // 1. Resolver caminho virtual → real
+function hasPagedBridge() {
+    return hasBridge() && typeof window.FileBridge.listFilesPaged === 'function';
+}
+
+// ========================================
+// CACHE DE ARQUIVOS COM PAGINAÇÃO
+// ========================================
+
+const PAGE_SIZE = 50;
+
+/**
+ * Cache de diretórios: path → { items, total, loadedAll }
+ */
+const dirCache = new Map();
+
+/**
+ * Invalida o cache para um diretório específico (após criar/excluir/renomear).
+ */
+export function invalidateDirCache(path) {
+    const resolved = resolveVirtualPath(path);
+    dirCache.delete(resolved);
+    // Também limpar cache do pai
+    const parent = resolved.substring(0, resolved.lastIndexOf('/'));
+    if (parent) dirCache.delete(parent);
+}
+
+/**
+ * Invalida todo o cache de arquivos (ao mudar de diretório).
+ */
+export function clearFileCache() {
+    dirCache.clear();
+}
+
+/**
+ * getFilesPaged — Versão paginada do getFiles.
+ * 
+ * Retorna um subconjunto dos arquivos, carregando sob demanda da bridge.
+ * Itens já carregados ficam em cache para navegação fluida.
+ * 
+ * @param {string} path - Caminho virtual ou real
+ * @param {number} offset - Índice inicial (0 = primeiro)
+ * @param {number} [limit=PAGE_SIZE] - Quantos itens carregar
+ * @returns {{ items: Array, total: number, hasMore: boolean }}
+ */
+export function getFilesPaged(path, offset = 0, limit = PAGE_SIZE) {
     const resolvedPath = resolveVirtualPath(path);
 
-    // 2. Tentar usar a bridge real (Android)
-    if (hasBridge()) {
+    // Fallback: sem bridge, retorna do fileSystem (dados mock, sem paginação real)
+    if (!hasBridge()) {
+        const allItems = fileSystem[path] || [];
+        const total = allItems.length;
+        const from = Math.max(0, offset);
+        const to = Math.min(total, offset + limit);
+        return {
+            items: allItems.slice(from, to),
+            total: total,
+            hasMore: to < total,
+        };
+    }
+
+    // Com bridge: usar paginação real
+    if (hasPagedBridge()) {
         try {
-            const json = window.FileBridge.listFiles(resolvedPath);
-            if (json) {
-                // Verificar se é erro
-                if (json.startsWith('{"error"')) {
-                    const err = JSON.parse(json);
-                    console.warn('[getFiles] Bridge retornou erro:', err.message);
-                    // Fallback para mock
-                } else {
-                    const result = JSON.parse(json);
-                    if (Array.isArray(result)) {
-                        console.log('[getFiles] Bridge retornou', result.length, 'itens para', resolvedPath);
-                        // A bridge já retorna no formato correto:
-                        // { name, type: "folder"|"file", path, size: "1.8 MB", date: "2025-03-10" }
-                        // Apenas mapeamos para o formato que a UI espera
-                        return result.map(item => ({
-                            name: item.name,
-                            type: item.type,         // "folder" ou "file" — já correto
-                            size: item.size || undefined, // Já formatado pela bridge
-                            date: item.date || undefined, // Já no formato yyyy-MM-dd
-                        }));
-                    }
-                }
+            const json = window.FileBridge.listFilesPaged(resolvedPath, offset, limit);
+            if (!json) return { items: [], total: 0, hasMore: false };
+            if (json.startsWith('{"error"')) {
+                const err = JSON.parse(json);
+                console.warn('[getFiles] Bridge paginada retornou erro:', err.message);
+                return { items: [], total: 0, hasMore: false };
             }
+            const result = JSON.parse(json);
+            const items = (result.items || []).map(item => ({
+                name: item.name,
+                type: item.type,
+                size: item.size || undefined,
+                date: item.date || undefined,
+            }));
+            return {
+                items,
+                total: result.total || 0,
+                hasMore: result.hasMore || false,
+            };
         } catch (e) {
-            console.warn('[getFiles] Exceção na bridge:', e);
+            console.warn('[getFiles] Exceção na bridge paginada:', e);
         }
     }
 
-    // 3. Fallback: dados mock (somente quando bridge não está disponível)
-    return fileSystem[path] || [];
+    // Bridge antiga (sem paginação nativa) — carregar tudo e paginar no JS
+    try {
+        const json = window.FileBridge.listFiles(resolvedPath);
+        if (json && !json.startsWith('{"error"')) {
+            const allItems = JSON.parse(json);
+            if (Array.isArray(allItems)) {
+                const mapped = allItems.map(item => ({
+                    name: item.name,
+                    type: item.type,
+                    size: item.size || undefined,
+                    date: item.date || undefined,
+                }));
+                const total = mapped.length;
+                const from = Math.max(0, offset);
+                const to = Math.min(total, offset + limit);
+                return {
+                    items: mapped.slice(from, to),
+                    total: total,
+                    hasMore: to < total,
+                };
+            }
+        }
+    } catch (e) {
+        console.warn('[getFiles] Exceção na bridge legada:', e);
+    }
+
+    return { items: [], total: 0, hasMore: false };
+}
+
+/**
+ * getFiles — mantido para compatibilidade, carrega tudo de uma vez.
+ * Internamente usa getFilesPaged para consistência.
+ */
+export function getFiles(path) {
+    const result = getFilesPaged(path, 0, -1);
+    return result.items;
+}
+
+/**
+ * Pré-carrega o próximo lote de arquivos em background.
+ * Usado pelo scroll infinito para manter a fluidez.
+ */
+export function prefetchNextPage(path, currentOffset) {
+    const nextOffset = currentOffset + PAGE_SIZE;
+    // Dispara o carregamento assíncrono via requestIdleCallback ou setTimeout
+    const load = () => {
+        getFilesPaged(path, nextOffset, PAGE_SIZE);
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(load, { timeout: 3000 });
+    } else {
+        setTimeout(load, 100);
+    }
 }

@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="css/settings.css">
     <link rel="stylesheet" href="css/apps.css">
     <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/task-queue.css">
     <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
@@ -588,6 +589,31 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:18px;height:18px;color:#FF3B30"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Cancelar seleção
         </div>
+    </div>
+
+    <!-- Task Queue Bar (oculta por padrão — operações em background) -->
+    <div class="task-queue-bar" id="taskQueueBar">
+        <div class="task-queue-status">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;color:var(--color-primary)">
+                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            <span class="task-queue-text" id="taskQueueText">Operações em andamento</span>
+            <span class="task-queue-badge" id="taskQueueBadge">0</span>
+        </div>
+        <button class="task-queue-toggle" id="taskQueueToggle" onclick="window.fmToggleTaskQueue()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Task Queue Details Panel -->
+    <div class="task-queue-panel" id="taskQueuePanel">
+        <div class="task-queue-panel-header">
+            <span>Operações ativas</span>
+            <button class="task-queue-panel-close" onclick="window.fmHideTaskQueue()">✕</button>
+        </div>
+        <div class="task-queue-list" id="taskQueueList"></div>
     </div>
 
     <!-- Clipboard Bar (oculta por padrão) -->

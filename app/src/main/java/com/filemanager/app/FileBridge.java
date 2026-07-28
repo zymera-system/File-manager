@@ -27,6 +27,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.util.Log;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -51,6 +53,10 @@ import java.util.Locale;
  * Novos métodos são adicionados com prefixo novo_ ou gerenciados pelo nome.
  */
 public class FileBridge {
+
+    private static final String TAG = "FileBridge";
+    public static final int REQUEST_UPLOAD_FILE = 2001;
+    public static final int REQUEST_UPLOAD_MULTIPLE = 2002;
 
     private final Activity activity;
 
@@ -123,6 +129,19 @@ public class FileBridge {
 
     @JavascriptInterface
     public String listFiles(String path) {
+        return listFilesPaged(path, 0, -1);
+    }
+
+    /**
+     * listFilesPaged — Retorna uma página de arquivos do diretório.
+     *
+     * @param path   Caminho do diretório
+     * @param offset Índice inicial (0 = primeiro item)
+     * @param limit  Número máximo de itens (-1 = todos)
+     * @return JSON: { items: [...], total: N, hasMore: bool }
+     */
+    @JavascriptInterface
+    public String listFilesPaged(String path, int offset, int limit) {
         try {
             File dir = resolvePath(path);
             if (dir == null || !dir.exists()) {
@@ -137,8 +156,7 @@ public class FileBridge {
                 return errorJson("Sem permissão para acessar: " + path);
             }
 
-            JSONArray result = new JSONArray();
-
+            // Ordenar: pastas primeiro, depois por nome
             Arrays.sort(files, new Comparator<File>() {
                 @Override
                 public int compare(File a, File b) {
@@ -148,9 +166,25 @@ public class FileBridge {
                 }
             });
 
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            int total = files.length;
+            boolean loadAll = (limit <= 0);
+            int from = Math.max(0, offset);
+            int to = loadAll ? total : Math.min(total, offset + limit);
+            if (from >= total) {
+                // Offset além do total — retornar vazio
+                JSONObject result = new JSONObject();
+                result.put("items", new JSONArray());
+                result.put("total", total);
+                result.put("hasMore", false);
+                result.put("offset", offset);
+                return result.toString();
+            }
 
-            for (File file : files) {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            JSONArray arr = new JSONArray();
+
+            for (int i = from; i < to; i++) {
+                File file = files[i];
                 JSONObject item = new JSONObject();
                 item.put("name", file.getName());
                 item.put("type", file.isDirectory() ? "folder" : "file");
@@ -160,9 +194,14 @@ public class FileBridge {
                 item.put("canRead", file.canRead());
                 item.put("canWrite", file.canWrite());
                 item.put("hidden", file.isHidden());
-                result.put(item);
+                arr.put(item);
             }
 
+            JSONObject result = new JSONObject();
+            result.put("items", arr);
+            result.put("total", total);
+            result.put("hasMore", to < total);
+            result.put("offset", offset);
             return result.toString();
 
         } catch (Exception e) {
@@ -497,6 +536,17 @@ public class FileBridge {
     }
 
     private int getInstalledAppsCount() {
+        try {
+            return activity.getPackageManager().getInstalledApplications(0).size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Retorna contagem de apps sem iterar detalhes completos.
+     */
+    private int getInstalledAppsCountFast() {
         try {
             return activity.getPackageManager().getInstalledApplications(0).size();
         } catch (Exception e) {
@@ -1136,6 +1186,7 @@ public class FileBridge {
     /**
      * Move arquivo/pasta para lixeira (.trash/).
      * Não exclui permanentemente — permite restauração.
+     * Registra no DatabaseManager para persistência entre sessões.
      */
     @JavascriptInterface
     public String trashItem(String path) {
@@ -1161,6 +1212,20 @@ public class FileBridge {
             }
 
             if (moved) {
+                // Registrar no DatabaseManager para persistência
+                if (databaseManager != null) {
+                    try {
+                        databaseManager.addBookmark(
+                            dest.getAbsolutePath(),
+                            file.getName(),
+                            DatabaseManager.TYPE_TRASH,
+                            "{\"originalPath\":\"" + file.getAbsolutePath() + "\",\"trashPath\":\"" + dest.getAbsolutePath() + "\"}"
+                        );
+                    } catch (Exception dbErr) {
+                        Log.w(TAG, "Erro ao registrar lixeira no DB: " + dbErr.getMessage());
+                    }
+                }
+
                 JSONObject result = new JSONObject();
                 result.put("success", true);
                 result.put("trashPath", dest.getAbsolutePath());
@@ -1207,6 +1272,15 @@ public class FileBridge {
             }
 
             if (moved) {
+                // Remover do DatabaseManager
+                if (databaseManager != null) {
+                    try {
+                        databaseManager.removeBookmark(trashPath, DatabaseManager.TYPE_TRASH);
+                    } catch (Exception dbErr) {
+                        Log.w(TAG, "Erro ao remover lixeira do DB: " + dbErr.getMessage());
+                    }
+                }
+
                 JSONObject result = new JSONObject();
                 result.put("success", true);
                 result.put("restoredPath", dest.getAbsolutePath());
@@ -1231,6 +1305,15 @@ public class FileBridge {
             }
             boolean deleted = file.isDirectory() ? deleteRecursive(file) : file.delete();
             if (deleted) {
+                // Remover do DatabaseManager
+                if (databaseManager != null) {
+                    try {
+                        databaseManager.removeBookmark(trashPath, DatabaseManager.TYPE_TRASH);
+                    } catch (Exception dbErr) {
+                        Log.w(TAG, "Erro ao remover lixeira do DB: " + dbErr.getMessage());
+                    }
+                }
+
                 JSONObject result = new JSONObject();
                 result.put("success", true);
                 return result.toString();
@@ -1416,7 +1499,9 @@ public class FileBridge {
             if (apkPath == null) return errorJson("APK não encontrado");
 
             File source = new File(apkPath);
-            File dest = new File(destDir, packageName + ".apk");
+            File destDirFile = new File(destDir);
+            if (!destDirFile.exists()) destDirFile.mkdirs();
+            File dest = new File(destDirFile, packageName + ".apk");
 
             java.io.InputStream in = new java.io.FileInputStream(source);
             java.io.OutputStream out = new java.io.FileOutputStream(dest);
@@ -1436,6 +1521,129 @@ public class FileBridge {
         } catch (Exception e) {
             return errorJson("Erro ao fazer backup: " + e.getMessage());
         }
+    }
+
+    // ========================================
+    //  UPLOAD — Seletor de arquivos
+    // ========================================
+
+    private String pendingUploadPath;
+
+    /**
+     * Abre o seletor de arquivos para upload de um único arquivo.
+     * @param destPath caminho de destino na interface
+     */
+    @JavascriptInterface
+    public void pickAndUploadFile(String destPath) {
+        this.pendingUploadPath = destPath;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        activity.startActivityForResult(intent, REQUEST_UPLOAD_FILE);
+    }
+
+    /**
+     * Abre o seletor de arquivos para upload de múltiplos arquivos.
+     * @param destPath caminho de destino na interface
+     */
+    @JavascriptInterface
+    public void pickAndUploadMultiple(String destPath) {
+        this.pendingUploadPath = destPath;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        activity.startActivityForResult(intent, REQUEST_UPLOAD_MULTIPLE);
+    }
+
+    /**
+     * Processa o resultado do upload. Chamado de MainActivity.onActivityResult.
+     */
+    public void handleUploadResult(int requestCode, int resultCode, Intent data) {
+        if (pendingUploadPath == null) return;
+        if (resultCode != Activity.RESULT_OK || data == null) {
+            pendingUploadPath = null;
+            notifyUploadResult(false, "Operação cancelada", 0);
+            return;
+        }
+
+        try {
+            int count = 0;
+            if (requestCode == REQUEST_UPLOAD_MULTIPLE && data.getClipData() != null) {
+                int clipCount = data.getClipData().getItemCount();
+                for (int i = 0; i < clipCount; i++) {
+                    Uri uri = data.getClipData().getItemAt(i).getUri();
+                    if (copyUriToPath(uri, pendingUploadPath)) count++;
+                }
+            } else if (data.getData() != null) {
+                Uri uri = data.getData();
+                if (copyUriToPath(uri, pendingUploadPath)) count++;
+            }
+
+            pendingUploadPath = null;
+            notifyUploadResult(true, count + " arquivo(s) enviado(s)", count);
+        } catch (Exception e) {
+            pendingUploadPath = null;
+            notifyUploadResult(false, "Erro: " + e.getMessage(), 0);
+        }
+    }
+
+    private boolean copyUriToPath(Uri uri, String destPath) {
+        try {
+            java.io.InputStream is = activity.getContentResolver().openInputStream(uri);
+            if (is == null) return false;
+
+            String fileName = getFileNameFromUri(uri);
+            File destFile = new File(resolvePath(destPath), fileName);
+            if (destFile.exists()) {
+                String base = fileName.replaceFirst("\\.[^.]+$", "");
+                String ext = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf('.')) : "";
+                int counter = 1;
+                while (destFile.exists()) {
+                    destFile = new File(destFile.getParent(), base + " (" + counter + ")" + ext);
+                    counter++;
+                }
+            }
+
+            java.io.OutputStream os = new java.io.FileOutputStream(destFile);
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = is.read(buffer)) != -1) {
+                os.write(buffer, 0, bytesRead);
+            }
+            os.close();
+            is.close();
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Erro ao copiar URI para destino: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private String getFileNameFromUri(Uri uri) {
+        String displayName = "uploaded_file";
+        try (android.database.Cursor cursor = activity.getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (nameIndex >= 0) {
+                    displayName = cursor.getString(nameIndex);
+                }
+            }
+        } catch (Exception ignored) {}
+        return displayName;
+    }
+
+    private void notifyUploadResult(boolean success, String message, int count) {
+        String json = "{success:" + success + ",message:\"" + message.replace("\"", "\\\"") + "\",count:" + count + "}";
+        final String script = "if (window.fmOnUploadComplete) window.fmOnUploadComplete('" + json.replace("'", "\\'") + "');";
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (activity instanceof MainActivity) {
+                    ((MainActivity) activity).evaluateJavascript(script);
+                }
+            }
+        });
     }
 
     // ========================================

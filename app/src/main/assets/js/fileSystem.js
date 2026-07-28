@@ -75,6 +75,50 @@ export const fileSystem = {
         { name: 'tablet_fotos.zip', type: 'file', size: '1.8 GB', date: '2025-02-20' },
     ]
 };
+// Cache dos dispositivos de armazenamento detectados via StorageBridge
+let storageDevicesCache = null;
+
+export function refreshStorageDevices() {
+    storageDevicesCache = null;
+}
+
+/**
+ * Verifica se um tipo de dispositivo está conectado usando StorageBridge real.
+ * Fallback para true se não houver bridge (modo browser/teste).
+ */
+function hasStorageType(type) {
+    if (typeof window.StorageBridge !== 'undefined' && window.StorageBridge !== null) {
+        try {
+            if (storageDevicesCache === null) {
+                const raw = window.StorageBridge.getStorageDevices();
+                storageDevicesCache = JSON.parse(raw);
+            }
+            if (!Array.isArray(storageDevicesCache)) return true;
+            if (type === 'sdcard') {
+                return storageDevicesCache.some(d => d.type === 'sdcard' || d.removable === true);
+            }
+            if (type === 'usb') {
+                return storageDevicesCache.some(d => d.type === 'usb');
+            }
+            return true;
+        } catch (e) {
+            return true; // fallback
+        }
+    }
+    return true; // fallback (sem bridge = browser)
+}
+
+/**
+ * Retorna os ícones da Home filtrando SD/USB baseado no dispositivo real.
+ */
+export function getFilteredIconMap() {
+    return iconMap.filter(item => {
+        if (item.path === '/CartaoSD' && !hasStorageType('sdcard')) return false;
+        if (item.path === '/DriveUSB' && !hasStorageType('usb')) return false;
+        return true;
+    });
+}
+
 export const iconMap = [
     { svg: `<svg viewBox="82 115 856 856" xmlns="http://www.w3.org/2000/svg"><defs>
 	<linearGradient id="arm-G1" gradientUnits="userSpaceOnUse" x1="570.97" y1="904.907" x2="448.969" y2="556.06">

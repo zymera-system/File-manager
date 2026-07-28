@@ -260,6 +260,16 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (fileBridge != null &&
+            (requestCode == FileBridge.REQUEST_UPLOAD_FILE ||
+             requestCode == FileBridge.REQUEST_UPLOAD_MULTIPLE)) {
+            fileBridge.handleUploadResult(requestCode, resultCode, data);
+        }
+    }
+
+    @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) {
             webView.goBack();

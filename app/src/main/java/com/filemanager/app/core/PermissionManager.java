@@ -19,7 +19,7 @@ public class PermissionManager {
     private static final String PERM_READ_MEDIA_IMAGES = "android.permission.READ_MEDIA_IMAGES";
     private static final String PERM_READ_MEDIA_VIDEO = "android.permission.READ_MEDIA_VIDEO";
     private static final String PERM_READ_MEDIA_AUDIO = "android.permission.READ_MEDIA_AUDIO";
-    private static final String PERM_READ_MEDIA_VISUAL_SELECTED = "android.permission.READ_MEDIA_VISUAL_USER_SELECTED";
+    private static final String PERM_READ_MEDIA_VISUAL_USER_SELECTED = "android.permission.READ_MEDIA_VISUAL_USER_SELECTED";
     private static final String PERM_POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";
 
     public static final int REQUEST_STORAGE_LEGACY = 1001;

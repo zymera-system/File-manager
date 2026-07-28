@@ -1,0 +1,193 @@
+/* ===== TASK QUEUE BAR ===== */
+.task-queue-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    padding: 8px 16px;
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+}
+.task-queue-bar.active {
+    display: flex;
+}
+.task-queue-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex: 1;
+}
+.task-queue-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+.task-queue-badge {
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 7px;
+    min-width: 18px;
+    text-align: center;
+}
+.task-queue-toggle {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    padding: 4px;
+    border-radius: 6px;
+}
+.task-queue-toggle:hover {
+    background: rgba(0,0,0,0.04);
+}
+.dark .task-queue-toggle:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* ===== TASK QUEUE PANEL ===== */
+.task-queue-panel {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 40vh;
+    background: var(--color-surface);
+    border-top: 2px solid var(--color-primary);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    z-index: 200;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.task-queue-panel.open {
+    display: block;
+}
+.task-queue-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    background: var(--color-surface);
+    z-index: 1;
+}
+.task-queue-panel-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: 18px;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+.task-queue-panel-close:hover {
+    background: rgba(0,0,0,0.04);
+}
+.dark .task-queue-panel-close:hover {
+    background: rgba(255,255,255,0.05);
+}
+.task-queue-list {
+    padding: 8px 16px 16px;
+}
+
+/* ===== TASK ITEM ===== */
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border);
+}
+.task-item:last-child {
+    border-bottom: none;
+}
+.task-item-icon {
+    font-size: 20px;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.task-item-info {
+    flex: 1;
+    min-width: 0;
+}
+.task-item-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.task-item-file {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+.task-item-progress {
+    width: 80px;
+    flex-shrink: 0;
+}
+.task-item-progress-bar {
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.task-item-progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+.task-item-progress-text {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-align: right;
+    margin-top: 2px;
+}
+.task-item-cancel {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #FF3B30;
+    font-size: 18px;
+    padding: 4px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+.task-item-cancel:hover {
+    opacity: 1;
+}
+.task-item.status-completed {
+    opacity: 0.6;
+}
+.task-item.status-completed .task-item-progress-fill {
+    background: #34C759;
+}
+.task-item.status-failed {
+    opacity: 0.7;
+}
+.task-item.status-failed .task-item-progress-fill {
+    background: #FF3B30;
+}
+.task-item.status-failed .task-item-label {
+    color: #FF3B30;
+}

@@ -298,9 +298,16 @@ public class ArchiveManager {
 
     /**
      * Retorna extensão de um arquivo.
+     * Reconhece extensões compostas como "tar.gz", "tar.bz2", "tar.xz".
      */
     public static String getExtension(String path) {
         if (path == null) return "";
+        String lower = path.toLowerCase();
+        if (lower.endsWith(".tar.gz")) return "tar.gz";
+        if (lower.endsWith(".tar.bz2")) return "tar.bz2";
+        if (lower.endsWith(".tar.xz")) return "tar.xz";
+        if (lower.endsWith(".tar.lzma")) return "tar.lzma";
+        if (lower.endsWith(".tar.zst")) return "tar.zst";
         int dot = path.lastIndexOf('.');
         return dot >= 0 ? path.substring(dot + 1) : "";
     }

@@ -82,6 +82,7 @@ import {
     showSurePopup,
     shouldSkipConfirmDelete
 } from './loading.js';
+import { deleteWithProgress, copyWithProgress, moveWithProgress, getActiveTasks, hasActiveTasks } from './progress.js';
 
 function buildPath(base, name) {
     if (!name) return base || '/';
@@ -110,6 +111,7 @@ import {
 } from './cancellation.js';
 import { showToast } from './toast.js';
 import { initErrorHandler } from './errorHandler.js';
+import { uploadFile, uploadMultiple } from './upload.js';
 
 // ========================================
 // BRIDGE: Resolver caminhos virtuais → reais
@@ -131,7 +133,7 @@ window.bridgeCall = function(method, ...args) {
     try {
         if (!window.FileBridge || typeof window.FileBridge[method] !== 'function') {
             console.warn(`[bridge] Método "${method}" não disponível`);
-            return null;
+            return { success: false, error: "Método não disponível: " + method };
         }
         const raw = window.FileBridge[method](...args);
         if (raw === null || raw === undefined) return { success: true };
@@ -142,7 +144,7 @@ window.bridgeCall = function(method, ...args) {
         }
     } catch (e) {
         console.error(`[bridge] Erro em ${method}:`, e.message);
-        return null;
+        return { success: false, error: e.message };
     }
 };
 
@@ -283,6 +285,8 @@ window.fmConfirmCancel = function() {
 };
 window.fmShowReversalResult = showReversalResult;
 window.fmHideReversalResult = hideReversalResult;
+window.fmUploadFile = uploadFile;
+window.fmUploadMultiple = uploadMultiple;
 window.fmConfirmReversal = function() {
     const choice = getReversalChoice();
     if (choice === 'revert') {
@@ -545,6 +549,24 @@ window.fmConfirmRename = function() {
         showToast('Já existe um arquivo com esse nome', 'error');
         return;
     }
+
+    const hasBridge = typeof window.FileBridge !== 'undefined' && window.FileBridge !== null;
+    if (hasBridge) {
+        try {
+            const fullPath = renameTargetPath === '/' ? '/' + renameTarget : renameTargetPath + '/' + renameTarget;
+            const devicePath = window.fmGetDevicePath ? window.fmGetDevicePath(fullPath) : fullPath;
+            const raw = window.FileBridge.renameItem(devicePath, newName);
+            const result = JSON.parse(raw);
+            if (result.error) {
+                showToast(result.error, 'error');
+                return;
+            }
+        } catch (e) {
+            showToast('Erro ao renomear: ' + e.message, 'error');
+            return;
+        }
+    }
+
     const item = current.find(f => f.name === renameTarget);
     if (item) {
         const wasFolder = item.type === 'folder';
@@ -695,6 +717,30 @@ window.fmConfirmDelete = async function() {
         snapshotBeforeMove(currentPath, item);
     }
 
+    // Para exclusão permanente com bridge, usar asyncDelete em batch
+    if (permanentDelete && hasNativeBridge() && itemsToTrash.length > 0) {
+        document.getElementById('deleteModalOverlay').classList.remove('open');
+
+        // Excluir cada item via asyncDelete (background thread c/ progresso)
+        const deletePromises = itemsToTrash.map(item => {
+            const fullPath = buildPath(currentPath, item.name);
+            const devicePath = window.fmGetDevicePath
+                ? window.fmGetDevicePath(fullPath)
+                : fullPath;
+            return deleteWithProgress(devicePath);
+        });
+
+        // Aguardar todas as exclusões em background
+        Promise.allSettled(deletePromises).then(() => {
+            deleteTargets = [];
+            clearSelection();
+            renderFiles();
+            showToast(itemsToTrash.length + ' arquivo(s) excluído(s) permanentemente', 'success');
+        });
+
+        return;
+    }
+
     showLoading({
         icon: 'delete',
         title: 'Excluindo arquivos',
@@ -730,7 +776,6 @@ window.fmConfirmDelete = async function() {
             if (getFiles(currentPath).some(f => f.name === item.name)) {
                 moveToTrash([item], currentPath);
             }
-            deleteItemDirect(item.name, currentPath);
         }
         trackFileProcessed(item.name, currentPath, null, 'deleted');
         deleted++;
@@ -1062,7 +1107,8 @@ window.addEventListener('popstate', function(event) {
 // ===== Propriedades detalhadas =====
 function showProperties(path, name) {
     try {
-        const raw = window.FileBridge.getFileInfo(path);
+        const devicePath = window.fmGetDevicePath ? window.fmGetDevicePath(path) : path;
+        const raw = window.FileBridge.getFileInfo(devicePath);
         if (!raw) { showToast('Não foi possível obter informações', 'error'); return; }
         const info = JSON.parse(raw);
         if (info.error) { showToast(info.error, 'error'); return; }
@@ -1104,6 +1150,27 @@ if (window.FileBridge && !window.Android) {
         showToast: function(msg) { showToast(msg, 'info'); }
     };
 }
+
+// Show eject instructions for storage devices
+window.fmShowEjectInstructions = function(path) {
+    showToast('Para ejetar, vá em Configurações > Armazenamento > Desmontar', 'info');
+};
+
+// Upload complete callback from Java
+window.fmOnUploadComplete = function(result) {
+    try {
+        const data = typeof result === 'string' ? JSON.parse(result) : result;
+        if (data.success) {
+            showToast('Upload concluído: ' + (data.count || 1) + ' arquivo(s)', 'success');
+            renderFiles();
+        } else {
+            showToast('Falha no upload: ' + (data.message || 'erro desconhecido'), 'error');
+        }
+    } catch (e) {
+        showToast('Upload finalizado', 'info');
+        renderFiles();
+    }
+};
 
 // Bridge: Ação da Home (chamada pelo Java via evaluateJavascript)
 window.fmHomeAction = function() {

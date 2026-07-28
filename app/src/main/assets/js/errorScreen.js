@@ -55,7 +55,7 @@ export function renderErrorLog() {
 export function exportLogs() {
     const logs = logger.getLogs();
     if (logs.length === 0) {
-        alert('Nenhum erro para exportar.');
+        showToast('Nenhum erro para exportar.');
         return;
     }
 
@@ -93,7 +93,7 @@ export function exportLogs() {
 export function shareLogs() {
     const logs = logger.getLogs();
     if (logs.length === 0) {
-        alert('Nenhum erro para compartilhar.');
+        showToast('Nenhum erro para compartilhar.');
         return;
     }
     const text = buildExportText(logs);
@@ -111,7 +111,7 @@ export function shareLogs() {
 export function copyAllLogs() {
     const logs = logger.getLogs();
     if (logs.length === 0) {
-        alert('Nenhum erro para copiar.');
+        showToast('Nenhum erro para copiar.');
         return;
     }
     const text = buildExportText(logs);
@@ -120,7 +120,21 @@ export function copyAllLogs() {
 }
 
 export function clearAllLogs() {
-    if (confirm('Tem certeza que deseja limpar todos os logs de erro?')) {
+    const modal = document.getElementById('confirmModal');
+    const msg = document.getElementById('confirmMessage');
+    if (modal && msg) {
+        msg.textContent = 'Tem certeza que deseja limpar todos os logs de erro?';
+        modal.classList.add('open');
+        window.fmConfirmClearLogs = function() {
+            logger.clearLogs();
+            renderErrorLog();
+            modal.classList.remove('open');
+            showToast('Logs limpos');
+        };
+        window.fmCancelClearLogs = function() {
+            modal.classList.remove('open');
+        };
+    } else {
         logger.clearLogs();
         renderErrorLog();
     }

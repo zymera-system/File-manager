@@ -403,7 +403,7 @@ export async function backupApk() {
 
     await new Promise(r => setTimeout(r, 200));
     hideLoading();
-    showToast(`✅ ${backed || apps.length} backup(s) salvo(s)`, 'success');
+    showToast(`✅ ${backed} backup(s) salvo(s)`, 'success');
 }
 
 export function uninstallApp() {
@@ -471,7 +471,9 @@ export async function confirmUninstall() {
     closeModal('uninstall');
     clearAppSelection();
     renderAppList();
-    showToast(`🗑️ ${total} app(s) desinstalado(s)`, 'success');
+    const uninstalled = [...downloadedApps, ...systemApps].filter(a => !apps.includes(a.name));
+    const confirmed = total - (downloadedApps.length + systemApps.length - apps.length);
+    showToast(`🗑️ ${confirmed} app(s) desinstalado(s)`, 'success');
 }
 
 export function shareApp() {
@@ -487,10 +489,21 @@ export function shareVia(platform) {
 
     if (hasBridge && apps.length > 0) {
         try {
-            // Compartilhar APK do primeiro app selecionado
             const appData = [...downloadedApps, ...systemApps].find(a => a.name === apps[0]);
             if (appData && appData.apkPath) {
-                window.FileBridge.shareFile(appData.apkPath);
+                switch (platform) {
+                    case 'bluetooth':
+                        window.FileBridge.shareViaBluetooth(appData.apkPath);
+                        break;
+                    case 'whatsapp':
+                        window.FileBridge.shareViaWhatsApp(appData.apkPath);
+                        break;
+                    case 'drive':
+                        window.FileBridge.shareViaDrive(appData.apkPath);
+                        break;
+                    default:
+                        window.FileBridge.shareFile(appData.apkPath);
+                }
             }
         } catch (e) {
             console.warn('[apps] Erro ao compartilhar:', e.message);
