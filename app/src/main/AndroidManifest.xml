@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.filemanager.app">
 
     <!-- Permissões de Armazenamento -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -15,7 +16,6 @@
 
     <!-- Permissões de Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- Permissões Outros -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -45,8 +45,7 @@
 
         <service
             android:name=".service.FileManagerService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:exported="false" />
 
     </application>
 
