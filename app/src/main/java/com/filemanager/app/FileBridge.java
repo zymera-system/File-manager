@@ -8,11 +8,15 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.webkit.JavascriptInterface;
 
+import com.filemanager.app.core.ArchiveManager;
 import com.filemanager.app.core.DatabaseManager;
+import com.filemanager.app.core.MediaPlayerManager;
 import com.filemanager.app.core.ObserverManager;
 import com.filemanager.app.core.OperationManager;
 import com.filemanager.app.core.PermissionManager;
 import com.filemanager.app.core.StorageDetector;
+import com.filemanager.app.core.UIBridge;
+import com.filemanager.app.service.FileManagerService;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,6 +55,9 @@ public class FileBridge {
     private StorageDetector storageDetector;
     private DatabaseManager databaseManager;
     private ObserverManager observerManager;
+    private ArchiveManager archiveManager;
+    private MediaPlayerManager mediaPlayerManager;
+    private UIBridge uiBridge;
     private boolean initialized = false;
 
     public FileBridge(Activity activity) {
@@ -69,6 +76,12 @@ public class FileBridge {
         storageDetector = new StorageDetector(activity.getApplicationContext());
         databaseManager = DatabaseManager.getInstance(activity.getApplicationContext());
         observerManager = new ObserverManager();
+        archiveManager = new ArchiveManager(activity.getApplicationContext());
+        mediaPlayerManager = new MediaPlayerManager(activity);
+        uiBridge = new UIBridge(activity);
+
+        // Configurar cancelamento via Service
+        FileManagerService.setCancelCallback(() -> operationManager.cancelAll());
 
         initialized = true;
     }
@@ -80,6 +93,7 @@ public class FileBridge {
     public void destroy() {
         if (operationManager != null) operationManager.shutdown();
         if (observerManager != null) observerManager.stopAll();
+        if (uiBridge != null) uiBridge.dismissAll();
         initialized = false;
     }
 
@@ -92,6 +106,9 @@ public class FileBridge {
     public StorageDetector storage() { return storageDetector; }
     public DatabaseManager database() { return databaseManager; }
     public ObserverManager observers() { return observerManager; }
+    public ArchiveManager archives() { return archiveManager; }
+    public MediaPlayerManager media() { return mediaPlayerManager; }
+    public UIBridge ui() { return uiBridge; }
 
     // ========================
     //  LISTAR ARQUIVOS
@@ -603,6 +620,10 @@ public class FileBridge {
     public String asyncCopy(String sourcePath, String destPath) {
         if (operationManager == null) init();
 
+        File sourceFile = new File(sourcePath);
+        String desc = "Copiando " + sourceFile.getName() + "...";
+        FileManagerService.start(activity, "copy", desc);
+
         return operationManager.submit("copy", (taskInfo) -> {
             File source = new File(sourcePath);
             File dest = new File(destPath);
@@ -610,11 +631,16 @@ public class FileBridge {
                 dest = new File(dest, source.getName());
             }
 
+            boolean result;
             if (source.isDirectory()) {
-                return copyDirWithProgress(source, dest, taskInfo);
+                result = copyDirWithProgress(source, dest, taskInfo);
             } else {
-                return copyFileWithProgress(source, dest, taskInfo);
+                result = copyFileWithProgress(source, dest, taskInfo);
             }
+
+            FileManagerService.finish(activity, result,
+                result ? source.getName() + " copiado" : "Falha ao copiar");
+            return result;
         });
     }
 
@@ -624,6 +650,10 @@ public class FileBridge {
     @JavascriptInterface
     public String asyncMove(String sourcePath, String destPath) {
         if (operationManager == null) init();
+
+        File sourceFile = new File(sourcePath);
+        String desc = "Movendo " + sourceFile.getName() + "...";
+        FileManagerService.start(activity, "move", desc);
 
         return operationManager.submit("move", (taskInfo) -> {
             File source = new File(sourcePath);
@@ -635,6 +665,7 @@ public class FileBridge {
             // Tentar rename primeiro
             if (source.renameTo(dest)) {
                 OperationManager.updateProgress(taskInfo, 1, 1, source.getName());
+                FileManagerService.finish(activity, true, source.getName() + " movido");
                 return true;
             }
 
@@ -649,16 +680,19 @@ public class FileBridge {
                 OperationManager.checkCancellation(taskInfo);
                 deleteRecursive(source);
             }
+            FileManagerService.finish(activity, success,
+                success ? source.getName() + " movido" : "Falha ao mover");
             return success;
         });
     }
 
-    /**
-     * Deleta arquivo/pasta em background com progresso.
-     */
     @JavascriptInterface
     public String asyncDelete(String path) {
         if (operationManager == null) init();
+
+        File deleteFile = new File(path);
+        String desc = "Excluindo " + deleteFile.getName() + "...";
+        FileManagerService.start(activity, "delete", desc);
 
         return operationManager.submit("delete", (taskInfo) -> {
             File file = new File(path);
@@ -851,6 +885,226 @@ public class FileBridge {
     }
 
     // ========================================
+    //  NOVOS MÉTODOS — COMPRESSÃO/DESCOMPRESSÃO
+    // ========================================
+
+    /**
+     * Comprime arquivos em ZIP.
+     */
+    @JavascriptInterface
+    public String compressZip(String filesJson, String outputZip) {
+        if (archiveManager == null) init();
+
+        try {
+            JSONArray paths = new JSONArray(filesJson);
+            File[] files = new File[paths.length()];
+            for (int i = 0; i < paths.length(); i++) {
+                files[i] = new File(paths.getString(i));
+            }
+
+            // Iniciar Service para notificação
+            FileManagerService.start(activity, "compress", "Comprimindo " + paths.length() + " arquivos...");
+
+            return operationManager.submit("compress", (taskInfo) -> {
+                boolean result = archiveManager.compressToZip(files, new File(outputZip), null);
+                OperationManager.updateProgress(taskInfo, 100, 100, "done");
+                return result;
+            });
+
+        } catch (Exception e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
+    /**
+     * Descomprime um ZIP.
+     */
+    @JavascriptInterface
+    public String extractZip(String zipPath, String destDir) {
+        if (archiveManager == null) init();
+
+        FileManagerService.start(activity, "extract", "Extraindo " + ArchiveManager.getExtension(zipPath).toUpperCase() + "...");
+
+        return operationManager.submit("extract", (taskInfo) -> {
+            boolean result = archiveManager.extractZip(new File(zipPath), new File(destDir), null);
+            return result;
+        });
+    }
+
+    /**
+     * Lista conteúdo de um ZIP.
+     */
+    @JavascriptInterface
+    public String listArchiveContents(String archivePath) {
+        if (archiveManager == null) init();
+        return archiveManager.listZipContents(archivePath);
+    }
+
+    /**
+     * Informações de um arquivo compactado.
+     */
+    @JavascriptInterface
+    public String getArchiveInfo(String archivePath) {
+        if (archiveManager == null) init();
+        return archiveManager.getArchiveInfo(archivePath);
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — MÍDIA
+    // ========================================
+
+    /**
+     * Abre um arquivo de mídia com player nativo.
+     */
+    @JavascriptInterface
+    public String openMedia(String filePath) {
+        if (mediaPlayerManager == null) init();
+        return mediaPlayerManager.openMedia(filePath);
+    }
+
+    /**
+     * Abre arquivo com app específico.
+     */
+    @JavascriptInterface
+    public String openWith(String filePath, String packageName) {
+        if (mediaPlayerManager == null) init();
+        return mediaPlayerManager.openWith(filePath, packageName);
+    }
+
+    /**
+     * Informações de mídia.
+     */
+    @JavascriptInterface
+    public String getMediaInfo(String filePath) {
+        if (mediaPlayerManager == null) init();
+        return mediaPlayerManager.getMediaInfo(filePath);
+    }
+
+    /**
+     * Scan de mídia para galeria.
+     */
+    @JavascriptInterface
+    public String scanMedia(String filePath) {
+        if (mediaPlayerManager == null) init();
+        return mediaPlayerManager.scanMedia(filePath);
+    }
+
+    /**
+     * Compartilha arquivo.
+     */
+    @JavascriptInterface
+    public String shareFile(String filePath) {
+        if (mediaPlayerManager == null) init();
+        return mediaPlayerManager.shareFile(filePath);
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — UI NATIVA
+    // ========================================
+
+    /**
+     * Toast rápido.
+     */
+    @JavascriptInterface
+    public void showToast(String message) {
+        if (uiBridge == null) init();
+        uiBridge.showToast(message);
+    }
+
+    /**
+     * Diálogo de confirmação.
+     */
+    @JavascriptInterface
+    public void showConfirmDialog(String title, String message, String positiveLabel,
+                                   String negativeLabel, String callbackName) {
+        if (uiBridge == null) init();
+        uiBridge.showConfirmDialog(title, message, positiveLabel, negativeLabel, callbackName);
+    }
+
+    /**
+     * Input dialog (renomear, criar pasta).
+     */
+    @JavascriptInterface
+    public void showInputDialog(String title, String hint, String defaultValue,
+                                 int inputType, String callbackName) {
+        if (uiBridge == null) init();
+        uiBridge.showInputDialog(title, hint, defaultValue, inputType, callbackName);
+    }
+
+    /**
+     * Bottom sheet de opções.
+     */
+    @JavascriptInterface
+    public void showOptionsSheet(String title, String optionsJson, String callbackName) {
+        if (uiBridge == null) init();
+        uiBridge.showOptionsSheet(title, optionsJson, callbackName);
+    }
+
+    /**
+     * Overlay de progresso.
+     */
+    @JavascriptInterface
+    public void showProgressOverlay(String message, int progress) {
+        if (uiBridge == null) init();
+        uiBridge.showProgressOverlay(message, progress);
+    }
+
+    /**
+     * Atualiza overlay de progresso.
+     */
+    @JavascriptInterface
+    public void updateProgressOverlay(int progress, String message) {
+        if (uiBridge == null) init();
+        uiBridge.updateProgressOverlay(progress, message);
+    }
+
+    /**
+     * Esconde overlay de progresso.
+     */
+    @JavascriptInterface
+    public void hideProgressOverlay() {
+        if (uiBridge == null) init();
+        uiBridge.hideProgressOverlay();
+    }
+
+    /**
+     * Diálogo de informação.
+     */
+    @JavascriptInterface
+    public void showInfoDialog(String title, String message) {
+        if (uiBridge == null) init();
+        uiBridge.showInfoDialog(title, message);
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — SERVICE
+    // ========================================
+
+    /**
+     * Inicia foreground service para operação longa.
+     */
+    @JavascriptInterface
+    public void startService(String operationType, String description) {
+        FileManagerService.start(activity, operationType, description);
+    }
+
+    /**
+     * Atualiza progresso do service.
+     */
+    @JavascriptInterface
+    public void updateServiceProgress(int progress, String currentFile) {
+        FileManagerService.updateProgress(activity, progress, currentFile);
+    }
+
+    /**
+     * Finaliza o service.
+     */
+    @JavascriptInterface
+    public void finishService(boolean success, String message) {
+        FileManagerService.finish(activity, success, message);
+    }
+
+    // ========================================
     //  NOVOS MÉTODOS — STATUS GERAL
     // ========================================
 
@@ -866,6 +1120,10 @@ public class FileBridge {
             status.put("activeOperations", operationManager != null ? operationManager.getActiveTaskCount() : 0);
             status.put("observers", new JSONObject(observerManager != null ? observerManager.getStatusJson() : "{}"));
             status.put("databaseStats", new JSONObject(databaseManager != null ? databaseManager.getStatsJson() : "{}"));
+            status.put("archiveManager", archiveManager != null ? "ready" : "null");
+            status.put("mediaPlayer", mediaPlayerManager != null ? "ready" : "null");
+            status.put("uiBridge", uiBridge != null ? "ready" : "null");
+            status.put("version", "2.0.0");
             return status.toString();
         } catch (Exception e) {
             return errorJson(e.getMessage());
@@ -1134,6 +1392,9 @@ public class FileBridge {
                 result.put("storageDetector", "OK");
                 result.put("databaseManager", "OK");
                 result.put("observerManager", "OK");
+                result.put("archiveManager", archiveManager != null ? "OK" : "FAIL");
+                result.put("mediaPlayerManager", mediaPlayerManager != null ? "OK" : "FAIL");
+                result.put("uiBridge", uiBridge != null ? "OK" : "FAIL");
             } else {
                 result.put("managers", "WARN:not_initialized");
             }

@@ -18,6 +18,10 @@
     <!-- Permissões USB -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
+    <!-- Permissões de Service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <!-- Permissões Outros -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -43,6 +47,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".service.FileManagerService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
     </application>
 
