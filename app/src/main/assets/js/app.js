@@ -682,7 +682,7 @@ window.fmConfirmDelete = async function() {
     if (!scanHidden) hideScan();
 
     // ===== FASE 2: CONFIRMAÇÃO =====
-    let permanentDelete = false;
+    let isPermanentDelete = false;
     if (!shouldSkipConfirmDelete()) {
         const confirmResult = await showConfirmation({
             folderCount,
@@ -698,7 +698,7 @@ window.fmConfirmDelete = async function() {
             return;
         }
 
-        permanentDelete = confirmResult.permanent;
+        isPermanentDelete = confirmResult.permanent;
 
         // ===== POPUP "TEM CERTEZA?" =====
         const sureResult = await showSurePopup();
@@ -718,7 +718,7 @@ window.fmConfirmDelete = async function() {
     }
 
     // Para exclusão permanente com bridge, usar asyncDelete em batch
-    if (permanentDelete && hasNativeBridge() && itemsToTrash.length > 0) {
+    if (isPermanentDelete && hasNativeBridge() && itemsToTrash.length > 0) {
         document.getElementById('deleteModalOverlay').classList.remove('open');
 
         // Excluir cada item via asyncDelete (background thread c/ progresso)
@@ -770,7 +770,7 @@ window.fmConfirmDelete = async function() {
         }
 
         const item = itemsToTrash[i];
-        if (permanentDelete) {
+        if (isPermanentDelete) {
             deleteItemDirect(item.name, currentPath);
         } else {
             if (getFiles(currentPath).some(f => f.name === item.name)) {
@@ -790,7 +790,7 @@ window.fmConfirmDelete = async function() {
     clearSelection();
     if (isClipboardActive()) cancelClipboard();
     renderFiles();
-    if (permanentDelete) {
+    if (isPermanentDelete) {
         showToast(deleted + ' arquivo(s) excluído(s) permanentemente', 'success');
     } else {
         showToast(deleted + ' arquivo(s) movido(s) para lixeira', 'success');

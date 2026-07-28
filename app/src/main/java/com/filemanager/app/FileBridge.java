@@ -810,9 +810,13 @@ public class FileBridge {
             File file = new File(path);
             if (!file.exists()) {
                 taskInfo.errorMessage = "File not found";
+                FileManagerService.finish(activity, false, "Arquivo não encontrado");
                 return false;
             }
-            return deleteWithProgress(file, taskInfo);
+            boolean result = deleteWithProgress(file, taskInfo);
+            FileManagerService.finish(activity, result,
+                result ? deleteFile.getName() + " excluído" : "Falha ao excluir");
+            return result;
         });
     }
 
@@ -1138,6 +1142,8 @@ public class FileBridge {
             return operationManager.submit("compress", (taskInfo) -> {
                 boolean result = archiveManager.compressToZip(files, new File(outputZip), null);
                 OperationManager.updateProgress(taskInfo, 100, 100, "done");
+                FileManagerService.finish(activity, result,
+                    result ? "Arquivos comprimidos em " + new File(outputZip).getName() : "Falha ao comprimir");
                 return result;
             });
 
@@ -1157,6 +1163,8 @@ public class FileBridge {
 
         return operationManager.submit("extract", (taskInfo) -> {
             boolean result = archiveManager.extractZip(new File(zipPath), new File(destDir), null);
+            FileManagerService.finish(activity, result,
+                result ? "Arquivo extraído para " + destDir : "Falha ao extrair");
             return result;
         });
     }

@@ -492,10 +492,11 @@ export function enableInfiniteScroll() {
             }
         }, { rootMargin: '200px' });
 
-        // Observar o grid para mudanças (novo botão "load more")
+        // Observar o grid para mudanças — quando o botão "load more" for adicionado ao DOM,
+        // começar a observá-lo para scroll infinito automático
         const mutationObserver = new MutationObserver(() => {
             const btn = document.getElementById('loadMoreBtn');
-            if (btn && !observer.takeRecords) {
+            if (btn) {
                 observer.observe(btn);
             }
         });
@@ -522,24 +523,3 @@ if (document.readyState === 'loading') {
     enableInfiniteScroll();
 }
 
-export function navigateTo(path) {
-    if (isClipboardActive()) {
-        // Durante clipboard, navega normalmente (escolher destino)
-    } else if (isSelectionMode()) {
-        clearSelection();
-        return;
-    }
-    if (path === '/') { currentPath = '/'; renderFiles(); document.getElementById('globalMenu').classList.remove('show'); return; }
-    if (!getFiles(path).length && path !== '/') {
-        if (path.startsWith('/') && path.split('/').length > 2) {
-            const parent = path.substring(0, path.lastIndexOf('/'));
-            if (getFiles(parent).length || fileSystem[parent]) { currentPath = parent; renderFiles(); document.getElementById('globalMenu').classList.remove('show'); return; }
-        }
-        currentPath = '/';
-        console.warn('Caminho não encontrado, redirecionando para raiz:', path);
-    } else {
-        currentPath = path;
-    }
-    renderFiles();
-    document.getElementById('globalMenu').classList.remove('show');
-}
