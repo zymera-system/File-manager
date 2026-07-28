@@ -8,6 +8,12 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.webkit.JavascriptInterface;
 
+import com.filemanager.app.core.DatabaseManager;
+import com.filemanager.app.core.ObserverManager;
+import com.filemanager.app.core.OperationManager;
+import com.filemanager.app.core.PermissionManager;
+import com.filemanager.app.core.StorageDetector;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,7 +22,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -24,28 +29,74 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * FileBridge - Ponte entre JavaScript e o sistema de arquivos nativo
- * 
- * Expõe funções via @JavascriptInterface para o WebView.
- * Permite que o JavaScript realize operações de arquivo no sistema nativo.
+ * FileBridge — Ponte entre JavaScript e o sistema de arquivos nativo.
+ *
+ * Arquitetura modular (Fase 1):
+ * - Delega permissões ao PermissionManager
+ * - Delega operações async ao OperationManager
+ * - Delega detecção de storage ao StorageDetector
+ * - Delega persistência ao DatabaseManager
+ * - Delega file watching ao ObserverManager
+ *
+ * TODOS os métodos públicos existentes permanecem intactos (backward compat).
+ * Novos métodos são adicionados com prefixo novo_ ou gerenciados pelo nome.
  */
 public class FileBridge {
 
     private final Activity activity;
 
+    // Core managers (inicializados lazy via init())
+    private PermissionManager permissionManager;
+    private OperationManager operationManager;
+    private StorageDetector storageDetector;
+    private DatabaseManager databaseManager;
+    private ObserverManager observerManager;
+    private boolean initialized = false;
+
     public FileBridge(Activity activity) {
         this.activity = activity;
     }
+
+    /**
+     * Inicializa todos os core managers.
+     * Chamar APÓS obter permissões iniciais.
+     */
+    public void init() {
+        if (initialized) return;
+
+        permissionManager = new PermissionManager(activity);
+        operationManager = new OperationManager();
+        storageDetector = new StorageDetector(activity.getApplicationContext());
+        databaseManager = DatabaseManager.getInstance(activity.getApplicationContext());
+        observerManager = new ObserverManager();
+
+        initialized = true;
+    }
+
+    /**
+     * Libera recursos dos managers.
+     * Chamar no onDestroy da Activity.
+     */
+    public void destroy() {
+        if (operationManager != null) operationManager.shutdown();
+        if (observerManager != null) observerManager.stopAll();
+        initialized = false;
+    }
+
+    // ========================================
+    //  ACESSO AOS MANAGERS (para MainActivity)
+    // ========================================
+
+    public PermissionManager permissions() { return permissionManager; }
+    public OperationManager operations() { return operationManager; }
+    public StorageDetector storage() { return storageDetector; }
+    public DatabaseManager database() { return databaseManager; }
+    public ObserverManager observers() { return observerManager; }
 
     // ========================
     //  LISTAR ARQUIVOS
     // ========================
 
-    /**
-     * Lista arquivos e pastas em um diretório.
-     * @param path Caminho absoluto ou relativo
-     * @return JSON array com os itens encontrados
-     */
     @JavascriptInterface
     public String listFiles(String path) {
         try {
@@ -64,7 +115,6 @@ public class FileBridge {
 
             JSONArray result = new JSONArray();
 
-            // Ordena: pastas primeiro, depois por nome
             Arrays.sort(files, new Comparator<File>() {
                 @Override
                 public int compare(File a, File b) {
@@ -210,7 +260,6 @@ public class FileBridge {
             }
 
             File dest = resolvePath(destPath);
-            // Se destino é uma pasta, copiar para dentro dela
             if (dest.exists() && dest.isDirectory()) {
                 dest = new File(dest, source.getName());
             }
@@ -261,7 +310,6 @@ public class FileBridge {
 
     private boolean copyDirectoryRecursive(File source, File dest) {
         if (!dest.mkdirs()) {
-            // Pode falhar se já existe
             if (!dest.exists()) return false;
         }
 
@@ -293,7 +341,6 @@ public class FileBridge {
             }
 
             File dest = resolvePath(destPath);
-            // Se destino é uma pasta, mover para dentro dela
             if (dest.exists() && dest.isDirectory()) {
                 dest = new File(dest, source.getName());
             }
@@ -302,11 +349,9 @@ public class FileBridge {
                 return errorJson("Já existe um item com esse nome no destino");
             }
 
-            // Tentar rename primeiro (mesmo disco = instantâneo)
             boolean success = source.renameTo(dest);
 
             if (!success) {
-                // Dispositivos diferentes: copiar + deletar
                 if (source.isDirectory()) {
                     success = copyDirectoryRecursive(source, dest);
                 } else {
@@ -369,10 +414,15 @@ public class FileBridge {
 
     @JavascriptInterface
     public String getStorageInfo() {
+        // Delegar ao StorageDetector se disponível
+        if (storageDetector != null) {
+            return storageDetector.getPrimaryVolumeJson();
+        }
+
+        // Fallback: implementação original
         try {
             JSONObject info = new JSONObject();
 
-            // Armazenamento interno
             File internalDir = activity.getFilesDir();
             StatFs internalStat = new StatFs(internalDir.getAbsolutePath());
 
@@ -382,7 +432,6 @@ public class FileBridge {
 
             info.put("internal", buildStoragePart(internalTotal, internalFree, internalUsed));
 
-            // Armazenamento externo
             if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
                 File externalDir = Environment.getExternalStorageDirectory();
                 StatFs externalStat = new StatFs(externalDir.getAbsolutePath());
@@ -393,7 +442,6 @@ public class FileBridge {
 
                 info.put("external", buildStoragePart(externalTotal, externalFree, externalUsed));
 
-                // Combinado
                 long totalAll = internalTotal + externalTotal;
                 long freeAll = internalFree + externalFree;
                 long usedAll = internalUsed + externalUsed;
@@ -403,7 +451,6 @@ public class FileBridge {
                 info.put("total", buildStoragePart(internalTotal, internalFree, internalUsed));
             }
 
-            // Contar apps instalados
             info.put("appsCount", getInstalledAppsCount());
 
             return info.toString();
@@ -513,25 +560,440 @@ public class FileBridge {
         return size;
     }
 
+    // ========================================
+    //  NOVOS MÉTODOS — PERMISSÕES
+    // ========================================
+
+    /**
+     * Verifica se tem permissão de storage.
+     */
+    @JavascriptInterface
+    public String checkPermission() {
+        if (permissionManager == null) init();
+        return permissionManager.getStatusJson();
+    }
+
+    /**
+     * Solicita permissões de storage (adaptativo por versão).
+     */
+    @JavascriptInterface
+    public void requestPermission() {
+        if (permissionManager == null) init();
+        permissionManager.requestStoragePermissions();
+    }
+
+    /**
+     * Abre configurações de "Todos os arquivos" (Android 11+).
+     */
+    @JavascriptInterface
+    public void openStorageSettings() {
+        if (permissionManager == null) init();
+        permissionManager.openStorageSettings();
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — OPERAÇÕES ASSÍNCRONAS
+    // ========================================
+
+    /**
+     * Copia arquivo/pasta em background com progresso.
+     * @return taskId para polling
+     */
+    @JavascriptInterface
+    public String asyncCopy(String sourcePath, String destPath) {
+        if (operationManager == null) init();
+
+        return operationManager.submit("copy", (taskInfo) -> {
+            File source = new File(sourcePath);
+            File dest = new File(destPath);
+            if (dest.isDirectory()) {
+                dest = new File(dest, source.getName());
+            }
+
+            if (source.isDirectory()) {
+                return copyDirWithProgress(source, dest, taskInfo);
+            } else {
+                return copyFileWithProgress(source, dest, taskInfo);
+            }
+        });
+    }
+
+    /**
+     * Move arquivo/pasta em background com progresso.
+     */
+    @JavascriptInterface
+    public String asyncMove(String sourcePath, String destPath) {
+        if (operationManager == null) init();
+
+        return operationManager.submit("move", (taskInfo) -> {
+            File source = new File(sourcePath);
+            File dest = new File(destPath);
+            if (dest.isDirectory()) {
+                dest = new File(dest, source.getName());
+            }
+
+            // Tentar rename primeiro
+            if (source.renameTo(dest)) {
+                OperationManager.updateProgress(taskInfo, 1, 1, source.getName());
+                return true;
+            }
+
+            // Copiar + deletar
+            boolean success;
+            if (source.isDirectory()) {
+                success = copyDirWithProgress(source, dest, taskInfo);
+            } else {
+                success = copyFileWithProgress(source, dest, taskInfo);
+            }
+            if (success) {
+                OperationManager.checkCancellation(taskInfo);
+                deleteRecursive(source);
+            }
+            return success;
+        });
+    }
+
+    /**
+     * Deleta arquivo/pasta em background com progresso.
+     */
+    @JavascriptInterface
+    public String asyncDelete(String path) {
+        if (operationManager == null) init();
+
+        return operationManager.submit("delete", (taskInfo) -> {
+            File file = new File(path);
+            if (!file.exists()) {
+                taskInfo.errorMessage = "File not found";
+                return false;
+            }
+            return deleteWithProgress(file, taskInfo);
+        });
+    }
+
+    /**
+     * Cancela uma operação assíncrona pelo taskId.
+     */
+    @JavascriptInterface
+    public boolean cancelOperation(String taskId) {
+        if (operationManager == null) return false;
+        return operationManager.cancel(taskId);
+    }
+
+    /**
+     * Cancela todas as operações ativas.
+     */
+    @JavascriptInterface
+    public void cancelAllOperations() {
+        if (operationManager == null) return;
+        operationManager.cancelAll();
+    }
+
+    /**
+     * Poll de progresso de uma operação assíncrona.
+     */
+    @JavascriptInterface
+    public String pollProgress(String taskId) {
+        if (operationManager == null) init();
+        return operationManager.getProgressJson(taskId);
+    }
+
+    /**
+     * Lista operações ativas.
+     */
+    @JavascriptInterface
+    public String getActiveOperations() {
+        if (operationManager == null) init();
+        return operationManager.getActiveTasksJson();
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — DETECÇÃO DE STORAGE
+    // ========================================
+
+    /**
+     * Lista todos os volumes de armazenamento.
+     */
+    @JavascriptInterface
+    public String getStorageVolumes() {
+        if (storageDetector == null) init();
+        return storageDetector.getAllVolumesJson();
+    }
+
+    /**
+     * Retorna espaço de um path específico.
+     */
+    @JavascriptInterface
+    public String getPathSpace(String path) {
+        if (storageDetector == null) init();
+        return storageDetector.getSpaceJson(path);
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — DATABASE (BOOKMARKS)
+    // ========================================
+
+    /**
+     * Adiciona um favorito.
+     */
+    @JavascriptInterface
+    public String addFavorite(String path, String name) {
+        if (databaseManager == null) init();
+        try {
+            long id = databaseManager.addBookmark(path, name, DatabaseManager.TYPE_FAVORITE, null);
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("id", id);
+            return result.toString();
+        } catch (Exception e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
+    /**
+     * Remove um favorito.
+     */
+    @JavascriptInterface
+    public String removeFavorite(String path) {
+        if (databaseManager == null) init();
+        int deleted = databaseManager.removeBookmark(path, DatabaseManager.TYPE_FAVORITE);
+        try {
+            JSONObject result = new JSONObject();
+            result.put("success", deleted > 0);
+            return result.toString();
+        } catch (Exception e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
+    /**
+     * Lista todos os favoritos.
+     */
+    @JavascriptInterface
+    public String getFavorites() {
+        if (databaseManager == null) init();
+        return databaseManager.getBookmarksJson(DatabaseManager.TYPE_FAVORITE);
+    }
+
+    /**
+     * Verifica se um path é favorito.
+     */
+    @JavascriptInterface
+    public boolean isFavorite(String path) {
+        if (databaseManager == null) init();
+        return databaseManager.isBookmark(path, DatabaseManager.TYPE_FAVORITE);
+    }
+
+    /**
+     * Adiciona ao histórico.
+     */
+    @JavascriptInterface
+    public void addToHistory(String path, String name) {
+        if (databaseManager == null) init();
+        databaseManager.addToHistory(path, name);
+    }
+
+    /**
+     * Retorna histórico.
+     */
+    @JavascriptInterface
+    public String getHistory() {
+        if (databaseManager == null) init();
+        return databaseManager.getBookmarksJson(DatabaseManager.TYPE_HISTORY);
+    }
+
+    /**
+     * Limpa histórico.
+     */
+    @JavascriptInterface
+    public void clearHistory() {
+        if (databaseManager == null) init();
+        databaseManager.clearHistory();
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — FILE OBSERVER
+    // ========================================
+
+    /**
+     * Inicia monitoramento de um diretório.
+     */
+    @JavascriptInterface
+    public boolean watchDirectory(String path) {
+        if (observerManager == null) init();
+        return observerManager.startWatching(path);
+    }
+
+    /**
+     * Para monitoramento de um diretório.
+     */
+    @JavascriptInterface
+    public boolean unwatchDirectory(String path) {
+        if (observerManager == null) init();
+        return observerManager.stopWatching(path);
+    }
+
+    /**
+     * Poll de eventos de mudança no filesystem.
+     */
+    @JavascriptInterface
+    public String pollFsEvents() {
+        if (observerManager == null) init();
+        return observerManager.pollEvents();
+    }
+
+    /**
+     * Status do file observer.
+     */
+    @JavascriptInterface
+    public String getObserverStatus() {
+        if (observerManager == null) init();
+        return observerManager.getStatusJson();
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — STATUS GERAL
+    // ========================================
+
+    /**
+     * Status completo da aplicação (todos os managers).
+     */
+    @JavascriptInterface
+    public String getSystemStatus() {
+        if (!initialized) init();
+        try {
+            JSONObject status = new JSONObject();
+            status.put("permissions", new JSONObject(permissionManager != null ? permissionManager.getStatusJson() : "{}"));
+            status.put("activeOperations", operationManager != null ? operationManager.getActiveTaskCount() : 0);
+            status.put("observers", new JSONObject(observerManager != null ? observerManager.getStatusJson() : "{}"));
+            status.put("databaseStats", new JSONObject(databaseManager != null ? databaseManager.getStatsJson() : "{}"));
+            return status.toString();
+        } catch (Exception e) {
+            return errorJson(e.getMessage());
+        }
+    }
+
+    // ========================================
+    //  HELPERS DE PROGRESSO (para operações async)
+    // ========================================
+
+    /**
+     * Copia arquivo com progresso e cancelamento.
+     */
+    private boolean copyFileWithProgress(File source, File dest, OperationManager.TaskInfo taskInfo) throws OperationManager.CancellationException {
+        try {
+            java.io.FileInputStream fis = new java.io.FileInputStream(source);
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(dest);
+
+            long totalSize = source.length();
+            long copied = 0;
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                OperationManager.checkCancellation(taskInfo);
+                fos.write(buffer, 0, bytesRead);
+                copied += bytesRead;
+                OperationManager.updateProgress(taskInfo, (int)(copied), (int)totalSize, source.getName());
+            }
+
+            fos.flush();
+            fos.close();
+            fis.close();
+            dest.setLastModified(source.lastModified());
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Copia diretório com progresso.
+     */
+    private boolean copyDirWithProgress(File source, File dest, OperationManager.TaskInfo taskInfo) throws OperationManager.CancellationException {
+        // Contar arquivos totais para progresso
+        int totalFiles = countFiles(source);
+        int[] processed = {0};
+
+        return copyDirWithProgressInner(source, dest, taskInfo, totalFiles, processed);
+    }
+
+    private boolean copyDirWithProgressInner(File source, File dest, OperationManager.TaskInfo taskInfo, int totalFiles, int[] processed) throws OperationManager.CancellationException {
+        if (!dest.mkdirs() && !dest.exists()) return false;
+
+        File[] files = source.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                OperationManager.checkCancellation(taskInfo);
+                File newDest = new File(dest, file.getName());
+                boolean ok;
+                if (file.isDirectory()) {
+                    ok = copyDirWithProgressInner(file, newDest, taskInfo, totalFiles, processed);
+                } else {
+                    ok = copyFileWithProgress(file, newDest, taskInfo);
+                }
+                if (!ok) return false;
+                processed[0]++;
+                OperationManager.updateProgress(taskInfo, processed[0], totalFiles, file.getName());
+            }
+        }
+        dest.setLastModified(source.lastModified());
+        return true;
+    }
+
+    /**
+     * Deleta com progresso (conta itens deletados).
+     */
+    private boolean deleteWithProgress(File file, OperationManager.TaskInfo taskInfo) throws OperationManager.CancellationException {
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                int total = children.length;
+                int processed = 0;
+                for (File child : children) {
+                    OperationManager.checkCancellation(taskInfo);
+                    deleteWithProgress(child, taskInfo);
+                    processed++;
+                    OperationManager.updateProgress(taskInfo, processed, total, child.getName());
+                }
+            }
+        }
+        return file.delete();
+    }
+
+    private int countFiles(File dir) {
+        int count = 0;
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    count += countFiles(file);
+                } else {
+                    count++;
+                }
+            }
+        }
+        return count > 0 ? count : 1;
+    }
+
     // ========================
     //  UTILITÁRIOS
     // ========================
 
-    /**
-     * Resolve um caminho para um objeto File.
-     * Suporta caminhos relativos (baseados no root do dispositivo).
-     */
     private File resolvePath(String path) {
+        // Usar StorageDetector se disponível
+        if (storageDetector != null && path != null && !path.startsWith("/")) {
+            String resolved = storageDetector.resolveVirtualPath(path);
+            if (resolved != null) return new File(resolved);
+        }
+
         if (path == null || path.isEmpty()) {
             return Environment.getExternalStorageDirectory();
         }
 
-        // Se começa com /, é absoluto
         if (path.startsWith("/")) {
             return new File(path);
         }
 
-        // Senão, relativo ao root
         return new File(Environment.getExternalStorageDirectory(), path);
     }
 
@@ -554,13 +1016,9 @@ public class FileBridge {
     }
 
     // ========================
-    //  SELF-TEST: valida cada método e retorna status
+    //  SELF-TEST
     // ========================
 
-    /**
-     * Executa auto-teste de todos os métodos da bridge.
-     * @return JSON com status de cada método
-     */
     @JavascriptInterface
     public String selfTest() {
         JSONObject result = new JSONObject();
@@ -578,7 +1036,7 @@ public class FileBridge {
                 String root = getRootPath();
                 String listResult = listFiles(root);
                 if (listResult != null && listResult.startsWith("[")) {
-                    org.json.JSONArray arr = new org.json.JSONArray(listResult);
+                    JSONArray arr = new JSONArray(listResult);
                     result.put("listFiles_root", "OK:" + arr.length() + " items");
                 } else {
                     result.put("listFiles_root", "FAIL:" + listResult);
@@ -592,7 +1050,9 @@ public class FileBridge {
                 String storageResult = getStorageInfo();
                 if (storageResult != null && !storageResult.contains("\"error\":true")) {
                     JSONObject info = new JSONObject(storageResult);
-                    long total = info.optJSONObject("total") != null ? info.getJSONObject("total").optLong("total", 0) : 0;
+                    long total = info.optJSONObject("total") != null
+                        ? info.getJSONObject("total").optLong("total", 0)
+                        : info.optLong("totalBytes", 0);
                     result.put("getStorageInfo", "OK:total=" + total);
                 } else {
                     result.put("getStorageInfo", "FAIL:" + storageResult);
@@ -610,7 +1070,7 @@ public class FileBridge {
                 result.put("fileExists", "FAIL:" + e.getMessage());
             }
 
-            // Test 5: listFiles on /Download (note: Android uses "Download" not "Downloads")
+            // Test 5: listFiles on /Download
             try {
                 String root = getRootPath();
                 String downloadPath = root + "/Download";
@@ -620,7 +1080,7 @@ public class FileBridge {
                 }
                 String dlResult = listFiles(downloadPath);
                 if (dlResult != null && dlResult.startsWith("[")) {
-                    org.json.JSONArray arr = new org.json.JSONArray(dlResult);
+                    JSONArray arr = new JSONArray(dlResult);
                     result.put("listFiles_download", "OK:" + arr.length() + " items at " + downloadPath);
                 } else {
                     result.put("listFiles_download", "FAIL:" + dlResult + " path=" + downloadPath);
@@ -637,7 +1097,7 @@ public class FileBridge {
                 boolean created = testFile.mkdirs();
                 if (created || testFile.exists()) {
                     result.put("createFolder", "OK");
-                    testFile.delete(); // cleanup
+                    testFile.delete();
                 } else {
                     result.put("createFolder", "FAIL:mkdirs returned false");
                 }
@@ -645,7 +1105,7 @@ public class FileBridge {
                 result.put("createFolder", "FAIL:" + e.getMessage());
             }
 
-            // Test 7: isExternalStorageManager (permission check)
+            // Test 7: permission check
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     boolean managed = Environment.isExternalStorageManager();
@@ -657,7 +1117,7 @@ public class FileBridge {
                 result.put("permission_managed_storage", "FAIL:" + e.getMessage());
             }
 
-            // Test 8: check READ/WRITE permissions
+            // Test 8: read/write check
             try {
                 boolean canRead = Environment.getExternalStorageDirectory().canRead();
                 boolean canWrite = Environment.getExternalStorageDirectory().canWrite();
@@ -665,6 +1125,17 @@ public class FileBridge {
                 result.put("permission_write", canWrite ? "OK" : "FAIL");
             } catch (Exception e) {
                 result.put("permission_check", "FAIL:" + e.getMessage());
+            }
+
+            // Test 9: managers
+            if (initialized) {
+                result.put("permissionManager", "OK");
+                result.put("operationManager", "OK:active=" + operationManager.getActiveTaskCount());
+                result.put("storageDetector", "OK");
+                result.put("databaseManager", "OK");
+                result.put("observerManager", "OK");
+            } else {
+                result.put("managers", "WARN:not_initialized");
             }
 
         } catch (Exception e) {
@@ -677,15 +1148,9 @@ public class FileBridge {
     //  DIAGNÓSTICO
     // ========================
 
-    /**
-     * Salva logs de diagnóstico em arquivo.
-     * @param logContent Conteúdo do log em texto
-     * @return JSON com resultado
-     */
     @JavascriptInterface
     public String saveDiagnosticLog(String logContent) {
         try {
-            // Salvar no diretório de Downloads
             File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             if (!downloadsDir.exists()) {
                 downloadsDir.mkdirs();
@@ -713,14 +1178,9 @@ public class FileBridge {
         }
     }
 
-    /**
-     * Salva log e prepara para compartilhamento.
-     * @param logContent Conteúdo do log em texto
-     */
     @JavascriptInterface
     public void shareDiagnosticLog(String logContent) {
         try {
-            // Salvar primeiro
             File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             if (!downloadsDir.exists()) {
                 downloadsDir.mkdirs();
@@ -735,7 +1195,6 @@ public class FileBridge {
             writer.flush();
             writer.close();
 
-            // Compartilhar via Intent
             final Uri fileUri = Uri.fromFile(logFile);
             final Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("text/plain");

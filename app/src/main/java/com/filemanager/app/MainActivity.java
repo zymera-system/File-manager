@@ -20,22 +20,24 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import com.filemanager.app.core.PermissionManager;
+
 /**
- * MainActivity - Wrapper Android para o File Manager Web
- * 
- * Este arquivo é o ponto de entrada do aplicativo Android.
- * Ele carrega o file manager web em um WebView e fornece
- * uma ponte (bridge) para operações nativas do sistema.
+ * MainActivity — Wrapper Android para o File Manager Web.
+ *
+ * Ponto de entrada do app Android. Carrega o WebView e gerencia:
+ * - Inicialização dos core managers via FileBridge.init()
+ * - Permissões de armazenamento via PermissionManager
+ * - Lifecycle completo (onCreate/onResume/onDestroy)
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements PermissionManager.PermissionCallback {
 
     private static final String TAG = "FileManager";
     private WebView webView;
-    private static final int PERMISSION_REQUEST_CODE = 100;
-    private static final int MANAGE_STORAGE_REQUEST_CODE = 101;
 
     private FileBridge fileBridge;
     private StorageBridge storageBridge;
+    private PermissionManager permissionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,12 +51,12 @@ public class MainActivity extends Activity {
         // Configura o WebView
         setupWebView();
 
-        // Solicita permissões
-        requestPermissions();
+        // Solicita permissões via PermissionManager
+        requestStoragePermissions();
     }
 
     /**
-     * Configura o WebView com as opções necessárias
+     * Configura o WebView com as opções necessárias.
      */
     private void setupWebView() {
         webView = findViewById(R.id.webView);
@@ -67,16 +69,14 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-        // Permite que ES modules carreguem imports de file:// URLs (assets)
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setAllowUniversalAccessFromFileURLs(true);
 
-        // Adiciona as bridges JavaScript
+        // Registra as bridges JavaScript
         webView.addJavascriptInterface(fileBridge, "FileBridge");
         webView.addJavascriptInterface(storageBridge, "StorageBridge");
 
-        // Configura o cliente WebView com logging completo
+        // WebViewClient — tratamento de carregamento e erros
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -99,7 +99,6 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 Log.d(TAG, "=== onPageFinished: " + url + " ===");
-                // Verificar bridges disponíveis após carregamento
                 checkBridgesAvailability();
             }
 
@@ -121,6 +120,7 @@ public class MainActivity extends Activity {
             }
         });
 
+        // WebChromeClient — console logging
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
@@ -166,76 +166,121 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    // ========================================
+    //  PERMISSÕES (via PermissionManager)
+    // ========================================
+
     /**
-     * Solicita as permissões necessárias
+     * Solicita permissões de armazenamento de forma adaptativa.
+     * Delega ao PermissionManager que detecta a versão do Android.
      */
-    private void requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Log.d(TAG, "Android 11+ detectado, verificando MANAGE_EXTERNAL_STORAGE");
-            if (!Environment.isExternalStorageManager()) {
-                Log.d(TAG, "Permissão MANAGE_EXTERNAL_STORAGE não concedida, solicitando...");
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                intent.setData(Uri.parse("package:" + getPackageName()));
-                startActivityForResult(intent, MANAGE_STORAGE_REQUEST_CODE);
-            } else {
-                Log.d(TAG, "Permissão MANAGE_EXTERNAL_STORAGE já concedida");
-            }
+    private void requestStoragePermissions() {
+        permissionManager = new PermissionManager(this);
+        permissionManager.setCallback(this);
+
+        // Verificar se já tem permissão
+        if (permissionManager.hasStoragePermission()) {
+            Log.d(TAG, "Permissões de storage já concedidas");
+            onPermissionGranted("already_granted");
         } else {
-            Log.d(TAG, "Android " + Build.VERSION.SDK_INT + " detectado, verificando permissões legacy");
-            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                Log.d(TAG, "Solicitando READ/WRITE_EXTERNAL_STORAGE...");
-                requestPermissions(
-                    new String[]{
-                        Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    },
-                    PERMISSION_REQUEST_CODE);
-            } else {
-                Log.d(TAG, "Permissões de armazenamento já concedidas");
-            }
+            Log.d(TAG, "Solicitando permissões de storage...");
+            permissionManager.requestStoragePermissions();
         }
     }
 
+    /**
+     * Callback: permissão concedida.
+     */
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Log.d(TAG, "Permissão de armazenamento CONCEDIDA, recarregando WebView...");
-                webView.reload();
-            } else {
-                Log.w(TAG, "Permissão de armazenamento NEGADA pelo usuário");
-            }
+    public void onPermissionGranted(String permission) {
+        Log.d(TAG, "Permissão concedida: " + permission);
+
+        // Inicializar os managers agora que temos permissão
+        if (!isFileBridgeInitialized()) {
+            fileBridge.init();
+            Log.d(TAG, "FileBridge managers inicializados");
+        }
+
+        // Recarregar WebView se necessário
+        if (webView != null) {
+            webView.reload();
         }
     }
 
+    /**
+     * Callback: permissão negada.
+     */
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == MANAGE_STORAGE_REQUEST_CODE) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
-                Log.d(TAG, "MANAGE_EXTERNAL_STORAGE CONCEDIDO, recarregando WebView...");
+    public void onPermissionDenied(String permission) {
+        Log.w(TAG, "Permissão negada: " + permission);
+        // O app pode funcionar parcialmente sem permissão
+        // O JS irá mostrar aviso ao tentar acessar arquivos
+    }
+
+    /**
+     * Callback: requer grant manual (Android 11+ MANAGE_EXTERNAL_STORAGE).
+     */
+    @Override
+    public void onRequiresManualGrant() {
+        Log.d(TAG, "Redirecionando para configurações de All Files Access...");
+        permissionManager.openStorageSettings();
+    }
+
+    // ========================================
+    //  LIFECYCLE
+    // ========================================
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Verificar se permissão foi concedida após retorno das configurações
+        if (permissionManager != null && permissionManager.hasStoragePermission()) {
+            if (!isFileBridgeInitialized()) {
+                fileBridge.init();
+                Log.d(TAG, "FileBridge managers inicializados (onResume)");
+            }
+            if (webView != null) {
                 webView.reload();
-            } else {
-                Log.w(TAG, "MANAGE_EXTERNAL_STORAGE não concedido");
             }
         }
     }
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        Log.d(TAG, "=== onDestroy ===");
+
+        // Liberar resources dos managers
+        if (fileBridge != null) {
+            fileBridge.destroy();
+        }
+
+        if (webView != null) {
+            webView.destroy();
+        }
+
+        super.onDestroy();
+    }
+
+    // ========================================
+    //  HELPERS
+    // ========================================
+
+    private boolean isFileBridgeInitialized() {
+        return fileBridge.operations() != null;
+    }
+
     /**
-     * Executa JavaScript no WebView
+     * Executa JavaScript no WebView.
      */
     public void evaluateJavascript(String script) {
         if (webView != null) {
@@ -249,7 +294,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Verifica se as bridges JavaScript estão disponíveis
+     * Verifica se as bridges JavaScript estão disponíveis.
      */
     private void checkBridgesAvailability() {
         String checkScript =
@@ -269,14 +314,5 @@ public class MainActivity extends Activity {
                 Log.d(TAG, "  " + value);
             }
         });
-    }
-
-    @Override
-    protected void onDestroy() {
-        Log.d(TAG, "=== onDestroy ===");
-        if (webView != null) {
-            webView.destroy();
-        }
-        super.onDestroy();
     }
 }
