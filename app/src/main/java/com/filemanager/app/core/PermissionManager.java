@@ -145,7 +145,7 @@ public class PermissionManager {
                 PERM_READ_MEDIA_IMAGES,
                 PERM_READ_MEDIA_VIDEO,
                 PERM_READ_MEDIA_AUDIO,
-                PERM_READ_MEDIA_VISUAL_SELECTED
+                PERM_READ_MEDIA_VISUAL_USER_SELECTED
             };
         } else {
             permissions = new String[]{
