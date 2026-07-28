@@ -1275,18 +1275,6 @@ public class FileBridge {
         }
     }
 
-    private boolean deleteRecursive(File file) {
-        if (file.isDirectory()) {
-            File[] children = file.listFiles();
-            if (children != null) {
-                for (File child : children) {
-                    deleteRecursive(child);
-                }
-            }
-        }
-        return file.delete();
-    }
-
     // ========================================
     //  NOVOS MÉTODOS — MÍDIA
     // ========================================
