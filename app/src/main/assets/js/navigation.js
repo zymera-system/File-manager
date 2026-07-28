@@ -247,6 +247,8 @@ function appendItemsToGrid(items) {
     if (!grid) return;
     const showExt = getShowExtensions();
     grid.insertAdjacentHTML('beforeend', renderFileItemsHtml(items, showExt));
+    // Atualizar dataset com todos os itens carregados até agora
+    grid.dataset.items = JSON.stringify(paginationState.allItems);
 }
 
 function updateLoadMoreButton() {
@@ -324,6 +326,7 @@ export function renderFiles() {
         const showExt = getShowExtensions();
         const html = renderFileItemsHtml(paginationState.allItems, showExt);
         grid.innerHTML = html;
+        grid.dataset.items = JSON.stringify(paginationState.allItems);
         updateBreadcrumb();
         updateUIForPath(currentPath);
         updateLoadMoreButton();
@@ -345,9 +348,11 @@ export function renderFiles() {
 
             if (filtered.length === 0) {
                 grid.innerHTML = getEmptyStateHtml();
+                grid.dataset.items = '[]';
             } else {
                 const showExt = getShowExtensions();
                 grid.innerHTML = renderFileItemsHtml(filtered, showExt);
+                grid.dataset.items = JSON.stringify(filtered);
             }
             removeLoadMoreButton();
         } else {
@@ -372,6 +377,7 @@ export function renderFiles() {
 
             const showExt = getShowExtensions();
             grid.innerHTML = renderFileItemsHtml(sortedItems, showExt);
+            grid.dataset.items = JSON.stringify(sortedItems);
 
             // Pré-carregar próximo lote
             if (paginationState.hasMore) {
@@ -387,9 +393,11 @@ export function renderFiles() {
             const allItems = getFiles(currentPath);
             if (allItems.length === 0) {
                 grid.innerHTML = getEmptyStateHtml();
+                grid.dataset.items = '[]';
             } else {
                 const showExt = getShowExtensions();
                 grid.innerHTML = renderFileItemsHtml(allItems, showExt);
+                grid.dataset.items = JSON.stringify(allItems);
             }
         } catch (e2) {
             grid.innerHTML = getEmptyStateHtml();

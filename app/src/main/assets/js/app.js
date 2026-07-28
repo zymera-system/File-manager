@@ -341,6 +341,22 @@ window.fmClipboardConfirm = async function() {
     }
 };
 
+/**
+ * Detecta categoria MIME do arquivo pela extensão.
+ * Retorna 'audio', 'video', 'image', 'zip', 'text', 'apk', 'pdf' ou 'other'.
+ */
+function getFileCategory(fileName) {
+    const ext = fileName.split('.').pop().toLowerCase();
+    if (['mp3','wav','ogg','flac','aac','m4a','wma','opus','mid','midi'].includes(ext)) return 'audio';
+    if (['mp4','mkv','avi','mov','wmv','flv','webm','3gp','ts','m4v'].includes(ext)) return 'video';
+    if (['jpg','jpeg','png','gif','bmp','webp','svg','heic','heif','tiff','ico'].includes(ext)) return 'image';
+    if (['zip','7z','rar','tar','gz','bz2','xz','tgz','zst'].includes(ext)) return 'zip';
+    if (['txt','md','json','xml','html','htm','css','js','ts','java','kt','py','c','cpp','h','sh','bat','log','ini','cfg','yml','yaml','toml','env','gitignore'].includes(ext)) return 'text';
+    if (['pdf'].includes(ext)) return 'pdf';
+    if (['apk','aab'].includes(ext)) return 'apk';
+    return 'other';
+}
+
 window.fmFileClick = function(fileName) {
     if (wasLongPressTriggered()) {
         resetLongPressFlag();
@@ -354,11 +370,54 @@ window.fmFileClick = function(fileName) {
 
     if (!isSelectionMode()) {
         const item = allFiles.find(f => f.name === fileName);
-        if (item && item.type === 'folder') {
+        if (!item) return;
+
+        // Pasta → navegar
+        if (item.type === 'folder') {
             const targetPath = currentPath === '/'
                 ? '/' + fileName
                 : currentPath + '/' + fileName;
             navigateTo(targetPath);
+            return;
+        }
+
+        // Arquivo → abrir com player nativo (se tiver bridge)
+        if (typeof window.FileBridge !== 'undefined' && window.FileBridge !== null) {
+            const fullPath = currentPath === '/'
+                ? '/' + fileName
+                : currentPath + '/' + fileName;
+            const devicePath = window.fmGetDevicePath
+                ? window.fmGetDevicePath(fullPath)
+                : fullPath;
+            const cat = getFileCategory(fileName);
+
+            // Áudio, vídeo, imagem → abrir com player nativo
+            if (cat === 'audio' || cat === 'video' || cat === 'image') {
+                try {
+                    const result = window.FileBridge.openMedia(devicePath);
+                    const data = result ? JSON.parse(result) : null;
+                    if (data && data.error) {
+                        showToast('Nenhum aplicativo encontrado para abrir este arquivo', 'error');
+                    }
+                } catch (e) {
+                    console.warn('[app] Erro ao abrir mídia:', e);
+                    showToast('Erro ao abrir arquivo', 'error');
+                }
+                return;
+            }
+
+            // APK → instalar
+            if (cat === 'apk') {
+                window.FileBridge.openMedia(devicePath);
+                return;
+            }
+
+            // Outros tipos → tentar abrir com app padrão
+            try {
+                window.FileBridge.openMedia(devicePath);
+            } catch (e) {
+                showToast('Nenhum aplicativo encontrado para abrir este arquivo', 'error');
+            }
         }
         return;
     }

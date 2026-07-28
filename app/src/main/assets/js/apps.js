@@ -491,19 +491,9 @@ export function shareVia(platform) {
         try {
             const appData = [...downloadedApps, ...systemApps].find(a => a.name === apps[0]);
             if (appData && appData.apkPath) {
-                switch (platform) {
-                    case 'bluetooth':
-                        window.FileBridge.shareViaBluetooth(appData.apkPath);
-                        break;
-                    case 'whatsapp':
-                        window.FileBridge.shareViaWhatsApp(appData.apkPath);
-                        break;
-                    case 'drive':
-                        window.FileBridge.shareViaDrive(appData.apkPath);
-                        break;
-                    default:
-                        window.FileBridge.shareFile(appData.apkPath);
-                }
+                // Todos os métodos de compartilhamento usam shareFile da bridge
+                // (shareViaBluetooth/WhatsApp/Drive foram unificados em shareFile)
+                window.FileBridge.shareFile(appData.apkPath);
             }
         } catch (e) {
             console.warn('[apps] Erro ao compartilhar:', e.message);

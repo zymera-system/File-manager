@@ -113,14 +113,28 @@ function startPolling(taskId) {
 /**
  * Copia arquivo/pasta em background com progresso.
  */
+/**
+ * Interpreta o retorno de asyncCopy/asyncMove/asyncDelete.
+ * O Java retorna o taskId como string pura (ex: "task_a1b2c3d4").
+ */
+function parseAsyncResult(raw) {
+    if (!raw || raw === 'null') throw new Error('Resposta vazia da bridge');
+    // Se for JSON (começa com '{'), fazer parse completo
+    if (raw.startsWith('{')) {
+        const data = JSON.parse(raw);
+        if (data.error) throw new Error(data.error);
+        return data.taskId || raw;
+    }
+    // Se for string pura, é o próprio taskId
+    return raw;
+}
+
 export function copyWithProgress(sourcePath, destPath) {
     return startAsyncOperation(
         'copy',
         () => {
             const raw = window.FileBridge.asyncCopy(sourcePath, destPath);
-            const data = JSON.parse(raw);
-            if (data.error) throw new Error(data.error);
-            return data.taskId;
+            return parseAsyncResult(raw);
         },
         'Copiando...'
     );
@@ -134,9 +148,7 @@ export function moveWithProgress(sourcePath, destPath) {
         'move',
         () => {
             const raw = window.FileBridge.asyncMove(sourcePath, destPath);
-            const data = JSON.parse(raw);
-            if (data.error) throw new Error(data.error);
-            return data.taskId;
+            return parseAsyncResult(raw);
         },
         'Movendo...'
     );
@@ -150,9 +162,7 @@ export function deleteWithProgress(path) {
         'delete',
         () => {
             const raw = window.FileBridge.asyncDelete(path);
-            const data = JSON.parse(raw);
-            if (data.error) throw new Error(data.error);
-            return data.taskId;
+            return parseAsyncResult(raw);
         },
         'Excluindo...'
     );
@@ -164,9 +174,10 @@ export function deleteWithProgress(path) {
 export function cancelOperation(taskId) {
     if (!taskId) return;
     try {
-        const raw = window.FileBridge.cancelOperation(taskId);
-        const data = JSON.parse(raw);
-        if (!data.error) {
+        const result = window.FileBridge.cancelOperation(taskId);
+        // cancelOperation retorna boolean, não JSON
+        const success = (result === true || result === 'true');
+        if (success) {
             const taskInfo = activeTasks.get(taskId);
             if (taskInfo) {
                 taskInfo.status = 'cancelled';
