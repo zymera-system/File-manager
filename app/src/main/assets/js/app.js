@@ -154,7 +154,13 @@ setClipboardFilesMapGetter(() => fileSystem);
 
 // Expor funções globais para onclick inline no HTML
 window.fmNavigateTo = navigateTo;
-window.fmToggleFavorite = (name) => { toggleFavorite(name); renderFiles(); };
+window.fmToggleFavorite = (name) => {
+    const curPath = getCurrentPath();
+    const fullPath = curPath === '/' ? '/' + name : curPath + '/' + name;
+    const devicePath = window.fmGetDevicePath ? window.fmGetDevicePath(fullPath) : fullPath;
+    toggleFavorite(name, devicePath);
+    renderFiles();
+};
 window.fmDeleteItem = (name) => {
     showDeleteModal([name]);
 };
@@ -466,7 +472,12 @@ window.fmSelectionAction = async function(action) {
             }
             break;
         case 'favorite':
-            selected.forEach(name => toggleFavorite(name));
+            const curPath = getCurrentPath();
+            selected.forEach(name => {
+                const fullPath = curPath === '/' ? '/' + name : curPath + '/' + name;
+                const devicePath = window.fmGetDevicePath ? window.fmGetDevicePath(fullPath) : fullPath;
+                toggleFavorite(name, devicePath);
+            });
             clearSelection();
             renderFiles();
             break;

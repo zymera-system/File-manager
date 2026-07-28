@@ -1642,16 +1642,25 @@ public class FileBridge {
     }
 
     private void notifyUploadResult(boolean success, String message, int count) {
-        String json = "{success:" + success + ",message:\"" + message.replace("\"", "\\\"") + "\",count:" + count + "}";
-        final String script = "if (window.fmOnUploadComplete) window.fmOnUploadComplete('" + json.replace("'", "\\'") + "');";
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (activity instanceof MainActivity) {
-                    ((MainActivity) activity).evaluateJavascript(script);
+        try {
+            JSONObject json = new JSONObject();
+            json.put("success", success);
+            json.put("message", message);
+            json.put("count", count);
+            // Escapar o JSON para ser passado como string literal no JS
+            String escaped = json.toString().replace("'", "\\'");
+            final String script = "if (window.fmOnUploadComplete) window.fmOnUploadComplete('" + escaped + "');";
+            activity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (activity instanceof MainActivity) {
+                        ((MainActivity) activity).evaluateJavascript(script);
+                    }
                 }
-            }
-        });
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     // ========================================

@@ -45,6 +45,47 @@ export function resolveVirtualPath(virtualPath) {
 
     const root = paths.root || '/storage/emulated/0';
 
+    // Tenta obter caminhos reais de armazenamento removível via StorageBridge
+    let sdCardPath = null;
+    let usbDrivePath = null;
+    try {
+        if (typeof window.StorageBridge !== 'undefined' && window.StorageBridge !== null) {
+            if (typeof window.StorageBridge.getSDCardPath === 'function') {
+                const sdRaw = window.StorageBridge.getSDCardPath();
+                if (sdRaw) {
+                    const sdInfo = JSON.parse(sdRaw);
+                    if (sdInfo.path) sdCardPath = sdInfo.path;
+                }
+            }
+            if (typeof window.StorageBridge.getUSBDrivePath === 'function') {
+                const usbRaw = window.StorageBridge.getUSBDrivePath();
+                if (usbRaw) {
+                    const usbInfo = JSON.parse(usbRaw);
+                    if (usbInfo.path) usbDrivePath = usbInfo.path;
+                }
+            }
+        }
+    } catch (e) {
+        // StorageBridge pode não estar disponível — usar fallback
+    }
+
+    // Fallback: caminhos conhecidos comuns
+    if (!sdCardPath) {
+        const knownSD = ['/storage/sdcard1', '/storage/extSdCard', '/storage/external_SD',
+                         '/storage/ext_sd', '/storage/removable/sdcard1', '/mnt/sdcard',
+                         '/mnt/extSdCard', '/storage/emulated/0'];
+        for (const p of knownSD) {
+            if (p !== root) { sdCardPath = p; break; }
+        }
+    }
+    if (!usbDrivePath) {
+        const knownUSB = ['/storage/usbotg', '/storage/usb', '/storage/UsbDrive',
+                          '/storage/USB', '/mnt/usb', '/storage/udisk'];
+        for (const p of knownUSB) {
+            if (p !== root) { usbDrivePath = p; break; }
+        }
+    }
+
     // Mapeamento: nome virtual → chave no standardPaths
     const pathMap = {
         '/Armazenamento': root,
@@ -54,6 +95,8 @@ export function resolveVirtualPath(virtualPath) {
         '/Videos': paths.movies || root + '/Movies',
         '/Documentos': paths.documents || root + '/Documents',
         '/DCIM': paths.dcim || root + '/DCIM',
+        '/CartaoSD': sdCardPath,
+        '/DriveUSB': usbDrivePath,
     };
 
     // Caminhos virtuais simples

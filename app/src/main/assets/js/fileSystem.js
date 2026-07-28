@@ -93,19 +93,19 @@ function hasStorageType(type) {
                 const raw = window.StorageBridge.getStorageDevices();
                 storageDevicesCache = JSON.parse(raw);
             }
-            if (!Array.isArray(storageDevicesCache)) return true;
+            if (!Array.isArray(storageDevicesCache)) return false;
             if (type === 'sdcard') {
                 return storageDevicesCache.some(d => d.type === 'sdcard' || d.removable === true);
             }
             if (type === 'usb') {
                 return storageDevicesCache.some(d => d.type === 'usb');
             }
-            return true;
+            return false;
         } catch (e) {
-            return true; // fallback
+            return false; // falha na bridge = dispositivo não detectado
         }
     }
-    return true; // fallback (sem bridge = browser)
+    return false; // sem bridge = sem dispositivo removível confirmado
 }
 
 /**

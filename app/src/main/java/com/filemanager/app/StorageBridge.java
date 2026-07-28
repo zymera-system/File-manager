@@ -41,6 +41,21 @@ public class StorageBridge {
         setupUSBReceiver();
     }
 
+    /**
+     * Libera recursos e desregistra BroadcastReceivers.
+     * Deve ser chamado de MainActivity.onDestroy().
+     */
+    public void destroy() {
+        try {
+            if (usbReceiver != null) {
+                activity.unregisterReceiver(usbReceiver);
+                usbReceiver = null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     // ========================
     //  DETECÇÃO DE SD CARD
     // ========================

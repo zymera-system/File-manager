@@ -271,8 +271,10 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
+        // Chama a lógica unificada do JS (fecha modais, clipboard, navega pastas)
+        // em vez de webView.goBack() que opera no histórico do WebView.
+        if (webView != null) {
+            evaluateJavascript("window.fmGoBack();");
         } else {
             super.onBackPressed();
         }
@@ -285,6 +287,11 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
         // Liberar resources dos managers
         if (fileBridge != null) {
             fileBridge.destroy();
+        }
+
+        // Desregistrar BroadcastReceiver do USB/SD para evitar memory leak
+        if (storageBridge != null) {
+            storageBridge.destroy();
         }
 
         if (webView != null) {
