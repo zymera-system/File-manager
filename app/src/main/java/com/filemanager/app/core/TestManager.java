@@ -6,6 +6,8 @@ import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 
+import com.filemanager.app.FileBridge;
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -84,8 +86,8 @@ public class TestManager {
         // Test 1: getStatusJson
         test("PM_getStatus", () -> {
             String json = pm.getStatusJson();
-            assert json != null && !json.isEmpty() : "Status vazio";
-            assert json.contains("sdkVersion") : "Sem sdkVersion";
+            assertTrue(json != null && !json.isEmpty(), "Status vazio");
+            assertTrue(json.contains("sdkVersion"), "Sem sdkVersion");
         });
         r.put("getStatus", "OK");
 
@@ -101,8 +103,8 @@ public class TestManager {
         test("PM_statusFields", () -> {
             String json = pm.getStatusJson();
             JSONObject obj = new JSONObject(json);
-            assert obj.has("sdkVersion") : "Falta sdkVersion";
-            assert obj.has("hasStoragePermission") : "Falta hasStoragePermission";
+            assertTrue(obj.has("sdkVersion"), "Falta sdkVersion");
+            assertTrue(obj.has("hasStoragePermission"), "Falta hasStoragePermission");
         });
         r.put("statusFields", "OK");
 
@@ -119,8 +121,8 @@ public class TestManager {
                 OperationManager.updateProgress(taskInfo, 50, 100, "test.txt");
                 return true;
             });
-            assert taskId != null && !taskId.isEmpty() : "TaskId vazio";
-            assert taskId.startsWith("task_") : "TaskId formato inválido: " + taskId;
+            assertTrue(taskId != null && !taskId.isEmpty(), "TaskId vazio");
+            assertTrue(taskId.startsWith("task_"), "TaskId formato inválido: " + taskId);
         });
         r.put("submit", "OK");
 
@@ -138,8 +140,8 @@ public class TestManager {
 
             String json = om.getProgressJson(taskId);
             JSONObject obj = new JSONObject(json);
-            assert obj.has("progress") : "Falta progress";
-            assert obj.has("taskId") : "Falta taskId";
+            assertTrue(obj.has("progress"), "Falta progress");
+            assertTrue(obj.has("taskId"), "Falta taskId");
         });
         r.put("progress", "OK");
 
@@ -155,20 +157,19 @@ public class TestManager {
 
             Thread.sleep(20);
             boolean cancelled = om.cancel(taskId);
-            assert cancelled : "Não foi possível cancelar";
+            assertTrue(cancelled, "Não foi possível cancelar");
 
             Thread.sleep(100);
             String json = om.getProgressJson(taskId);
             JSONObject obj = new JSONObject(json);
-            assert obj.getBoolean("cancelled") || obj.getBoolean("completed") :
-                "Operação não foi cancelada nem completada";
+            assertTrue(obj.getBoolean("cancelled") || obj.getBoolean("completed"), "Operação não foi cancelada nem completada");
         });
         r.put("cancel", "OK");
 
         // Test 4: Active tasks
         test("OM_activeTasks", () -> {
             int active = om.getActiveTaskCount();
-            assert active >= 0 : "Contagem negativa: " + active;
+            assertTrue(active >= 0, "Contagem negativa: " + active);
         });
         r.put("activeTasks", "OK");
 
@@ -185,18 +186,18 @@ public class TestManager {
         // Test 1: Detectar volumes
         test("SD_detectVolumes", () -> {
             java.util.List<StorageDetector.StorageVolumeInfo> volumes = sd.detectAllVolumes();
-            assert volumes != null && !volumes.isEmpty() : "Nenhum volume detectado";
-            assert volumes.get(0).id.equals("internal") : "Primeiro volume não é internal";
+            assertTrue(volumes != null && !volumes.isEmpty(), "Nenhum volume detectado");
+            assertTrue(volumes.get(0).id.equals("internal"), "Primeiro volume não é internal");
         });
         r.put("detectVolumes", "OK");
 
         // Test 2: Primary volume
         test("SD_primaryVolume", () -> {
             String json = sd.getPrimaryVolumeJson();
-            assert json != null && !json.isEmpty() : "Primary volume JSON vazio";
+            assertTrue(json != null && !json.isEmpty(), "Primary volume JSON vazio");
             JSONObject obj = new JSONObject(json);
-            assert obj.has("totalBytes") : "Falta totalBytes";
-            assert obj.getLong("totalBytes") > 0 : "totalBytes zero";
+            assertTrue(obj.has("totalBytes"), "Falta totalBytes");
+            assertTrue(obj.getLong("totalBytes") > 0, "totalBytes zero");
         });
         r.put("primaryVolume", "OK");
 
@@ -204,19 +205,19 @@ public class TestManager {
         test("SD_spaceInfo", () -> {
             String root = Environment.getExternalStorageDirectory().getAbsolutePath();
             String json = sd.getSpaceJson(root);
-            assert json != null : "Space JSON nulo";
+            assertTrue(json != null, "Space JSON nulo");
             JSONObject obj = new JSONObject(json);
-            assert obj.has("totalBytes") : "Falta totalBytes";
-            assert obj.has("freeBytes") : "Falta freeBytes";
-            assert obj.getLong("totalBytes") > obj.getLong("freeBytes") : "total < free";
+            assertTrue(obj.has("totalBytes"), "Falta totalBytes");
+            assertTrue(obj.has("freeBytes"), "Falta freeBytes");
+            assertTrue(obj.getLong("totalBytes") > obj.getLong("freeBytes"), "total < free");
         });
         r.put("spaceInfo", "OK");
 
         // Test 4: Virtual path resolution
         test("SD_virtualPath", () -> {
             String real = sd.resolveVirtualPath("internal:/Download");
-            assert real != null : "Resolve retornou null";
-            assert real.contains("/Download") : "Resolve não contém /Download: " + real;
+            assertTrue(real != null, "Resolve retornou null");
+            assertTrue(real.contains("/Download"), "Resolve não contém /Download: " + real);
         });
         r.put("virtualPath", "OK");
 
@@ -224,8 +225,8 @@ public class TestManager {
         test("SD_allVolumes", () -> {
             String json = sd.getAllVolumesJson();
             JSONObject obj = new JSONObject(json);
-            assert obj.has("count") : "Falta count";
-            assert obj.getInt("count") >= 1 : "Menos de 1 volume";
+            assertTrue(obj.has("count"), "Falta count");
+            assertTrue(obj.getInt("count") >= 1, "Menos de 1 volume");
         });
         r.put("allVolumes", "OK");
 
@@ -243,14 +244,14 @@ public class TestManager {
         test("DB_addFavorite", () -> {
             long id = db.addBookmark("/storage/emulated/0/Download", "Download",
                 DatabaseManager.TYPE_FAVORITE, null);
-            assert id > 0 : "ID inválido: " + id;
+            assertTrue(id > 0, "ID inválido: " + id);
         });
         r.put("addFavorite", "OK");
 
         // Test 2: Verificar favorito
         test("DB_isFavorite", () -> {
             boolean isFav = db.isBookmark("/storage/emulated/0/Download", DatabaseManager.TYPE_FAVORITE);
-            assert isFav : "Favorito não encontrado";
+            assertTrue(isFav, "Favorito não encontrado");
         });
         r.put("isFavorite", "OK");
 
@@ -258,7 +259,7 @@ public class TestManager {
         test("DB_listFavorites", () -> {
             String json = db.getBookmarksJson(DatabaseManager.TYPE_FAVORITE);
             JSONObject obj = new JSONObject(json);
-            assert obj.getInt("count") >= 1 : "Nenhum favorito listado";
+            assertTrue(obj.getInt("count") >= 1, "Nenhum favorito listado");
         });
         r.put("listFavorites", "OK");
 
@@ -268,16 +269,16 @@ public class TestManager {
             db.addToHistory("/storage/emulated/0/Download", "Download");
             String json = db.getBookmarksJson(DatabaseManager.TYPE_HISTORY);
             JSONObject obj = new JSONObject(json);
-            assert obj.getInt("count") >= 2 : "Histórico incompleto";
+            assertTrue(obj.getInt("count") >= 2, "Histórico incompleto");
         });
         r.put("addHistory", "OK");
 
         // Test 5: Limpar favoritos
         test("DB_removeFavorite", () -> {
             int deleted = db.removeBookmark("/storage/emulated/0/Download", DatabaseManager.TYPE_FAVORITE);
-            assert deleted > 0 : "Nenhum registro removido";
+            assertTrue(deleted > 0, "Nenhum registro removido");
             boolean isFav = db.isBookmark("/storage/emulated/0/Download", DatabaseManager.TYPE_FAVORITE);
-            assert !isFav : "Favorito ainda existe após remoção";
+            assertTrue(!isFav, "Favorito ainda existe após remoção");
         });
         r.put("removeFavorite", "OK");
 
@@ -285,7 +286,7 @@ public class TestManager {
         test("DB_stats", () -> {
             String json = db.getStatsJson();
             JSONObject obj = new JSONObject(json);
-            assert obj.has("total") : "Falta total";
+            assertTrue(obj.has("total"), "Falta total");
         });
         r.put("stats", "OK");
 
@@ -303,7 +304,7 @@ public class TestManager {
         test("OM_statusInitial", () -> {
             String json = om.getStatusJson();
             JSONObject obj = new JSONObject(json);
-            assert obj.getInt("observedCount") == 0 : "Count inicial não zero";
+            assertTrue(obj.getInt("observedCount") == 0, "Count inicial não zero");
         });
         r.put("statusInitial", "OK");
 
@@ -311,17 +312,17 @@ public class TestManager {
         test("OM_startWatching", () -> {
             String dir = Environment.getExternalStorageDirectory().getAbsolutePath();
             boolean started = om.startWatching(dir);
-            assert started : "Não foi possível iniciar observer";
-            assert om.isWatching(dir) : "isWatching retorna false após start";
+            assertTrue(started, "Não foi possível iniciar observer");
+            assertTrue(om.isWatching(dir), "isWatching retorna false após start");
         });
         r.put("startWatching", "OK");
 
         // Test 3: Poll events
         test("OM_pollEvents", () -> {
             String json = om.pollEvents();
-            assert json != null : "Poll retornou null";
+            assertTrue(json != null, "Poll retornou null");
             JSONObject obj = new JSONObject(json);
-            assert obj.has("count") : "Falta count";
+            assertTrue(obj.has("count"), "Falta count");
         });
         r.put("pollEvents", "OK");
 
@@ -329,8 +330,8 @@ public class TestManager {
         test("OM_stopWatching", () -> {
             String dir = Environment.getExternalStorageDirectory().getAbsolutePath();
             boolean stopped = om.stopWatching(dir);
-            assert stopped : "Não foi possível parar observer";
-            assert !om.isWatching(dir) : "isWatching retorna true após stop";
+            assertTrue(stopped, "Não foi possível parar observer");
+            assertTrue(!om.isWatching(dir), "isWatching retorna true após stop");
         });
         r.put("stopWatching", "OK");
 
@@ -346,26 +347,26 @@ public class TestManager {
 
         // Test 1: isSupportedArchive
         test("AM_isSupported", () -> {
-            assert ArchiveManager.isSupportedArchive("test.zip") : "ZIP não suportado";
-            assert ArchiveManager.isSupportedArchive("test.tar.gz") : "TAR.GZ não suportado";
-            assert ArchiveManager.isSupportedArchive("test.rar") : "RAR não listado";
-            assert !ArchiveManager.isSupportedArchive("test.txt") : "TXT listado como archive";
+            assertTrue(ArchiveManager.isSupportedArchive("test.zip"), "ZIP não suportado");
+            assertTrue(ArchiveManager.isSupportedArchive("test.tar.gz"), "TAR.GZ não suportado");
+            assertTrue(ArchiveManager.isSupportedArchive("test.rar"), "RAR não listado");
+            assertTrue(!ArchiveManager.isSupportedArchive("test.txt"), "TXT listado como archive");
         });
         r.put("isSupported", "OK");
 
         // Test 2: getExtension
         test("AM_getExtension", () -> {
-            assert "zip".equals(ArchiveManager.getExtension("test.zip")) : "Extensão incorreta";
-            assert "".equals(ArchiveManager.getExtension("noext")) : "Sem extensão deveria retornar vazio";
-            assert "gz".equals(ArchiveManager.getExtension("test.tar.gz")) : "Extensão .gz incorreta";
+            assertTrue("zip".equals(ArchiveManager.getExtension("test.zip")), "Extensão incorreta");
+            assertTrue("".equals(ArchiveManager.getExtension("noext")), "Sem extensão deveria retornar vazio");
+            assertTrue("gz".equals(ArchiveManager.getExtension("test.tar.gz")), "Extensão .gz incorreta");
         });
         r.put("getExtension", "OK");
 
         // Test 3: canCreate
         test("AM_canCreate", () -> {
-            assert ArchiveManager.canCreate("zip") : "ZIP não criável";
-            assert ArchiveManager.canCreate("gz") : "GZ não criável";
-            assert !ArchiveManager.canCreate("rar") : "RAR listado como criável";
+            assertTrue(ArchiveManager.canCreate("zip"), "ZIP não criável");
+            assertTrue(ArchiveManager.canCreate("gz"), "GZ não criável");
+            assertTrue(!ArchiveManager.canCreate("rar"), "RAR listado como criável");
         });
         r.put("canCreate", "OK");
 
@@ -380,16 +381,16 @@ public class TestManager {
 
             File zipFile = new File(context.getCacheDir(), "test_output.zip");
             boolean compressed = am.compressToZip(new File[]{testFile}, zipFile, null);
-            assert compressed : "Compressão falhou";
-            assert zipFile.exists() && zipFile.length() > 0 : "ZIP vazio ou não criado";
+            assertTrue(compressed, "Compressão falhou");
+            assertTrue(zipFile.exists() && zipFile.length() > 0, "ZIP vazio ou não criado");
 
             // Extrair
             File extractDir = new File(context.getCacheDir(), "archive_extract");
             boolean extracted = am.extractZip(zipFile, extractDir, null);
-            assert extracted : "Extração falhou";
+            assertTrue(extracted, "Extração falhou");
 
             File extractedFile = new File(extractDir, "test.txt");
-            assert extractedFile.exists() : "Arquivo extraído não existe";
+            assertTrue(extractedFile.exists(), "Arquivo extraído não existe");
 
             // Cleanup
             testDir.delete();
@@ -410,8 +411,8 @@ public class TestManager {
             fb.init();
             String result = fb.selfTest();
             JSONObject obj = new JSONObject(result);
-            assert obj.has("getRootPath") : "selfTest sem getRootPath";
-            assert obj.getString("getRootPath").startsWith("OK") : "getRootPath falhou";
+            if (!obj.has("getRootPath")) throw new AssertionError("selfTest sem getRootPath");
+            if (!obj.getString("getRootPath").startsWith("OK")) throw new AssertionError("getRootPath falhou");
         });
         r.put("selfTest", "OK");
 

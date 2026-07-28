@@ -198,6 +198,7 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
         // Inicializar os managers agora que temos permissão
         if (!isFileBridgeInitialized()) {
             fileBridge.init();
+            fileBridge.ui().setWebView(webView);
             Log.d(TAG, "FileBridge managers inicializados");
         }
 
@@ -238,6 +239,7 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
         if (permissionManager != null && permissionManager.hasStoragePermission()) {
             if (!isFileBridgeInitialized()) {
                 fileBridge.init();
+                fileBridge.ui().setWebView(webView);
                 Log.d(TAG, "FileBridge managers inicializados (onResume)");
             }
             if (webView != null) {

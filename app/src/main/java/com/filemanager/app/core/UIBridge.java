@@ -43,9 +43,20 @@ public class UIBridge {
     private static final String TAG = "UIBridge";
     private final Activity activity;
     private Dialog progressDialog;
+    private ProgressBar progressDialogBar;
+    private TextView progressDialogPct;
+    private TextView progressDialogMsg;
+    private android.webkit.WebView webView;
 
     public UIBridge(Activity activity) {
         this.activity = activity;
+    }
+
+    /**
+     * Define o WebView para execução de callbacks JS.
+     */
+    public void setWebView(android.webkit.WebView webView) {
+        this.webView = webView;
     }
 
     // ========================================
@@ -230,39 +241,36 @@ public class UIBridge {
             layout.setBackgroundColor(Color.parseColor("#E6222222"));
 
             // Mensagem
-            TextView msgView = new TextView(activity);
-            msgView.setText(message);
-            msgView.setTextColor(Color.WHITE);
-            msgView.setTextSize(16);
-            msgView.setGravity(Gravity.CENTER);
-            msgView.setTag("message");
-            layout.addView(msgView);
+            progressDialogMsg = new TextView(activity);
+            progressDialogMsg.setText(message);
+            progressDialogMsg.setTextColor(Color.WHITE);
+            progressDialogMsg.setTextSize(16);
+            progressDialogMsg.setGravity(Gravity.CENTER);
+            layout.addView(progressDialogMsg);
 
             // Progress bar
-            ProgressBar progressBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
-            progressBar.setMax(100);
-            progressBar.setProgress(progress);
-            progressBar.setTag("progress");
+            progressDialogBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
+            progressDialogBar.setMax(100);
+            progressDialogBar.setProgress(progress);
             int marginTop = (int) (16 * activity.getResources().getDisplayMetrics().density);
             FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             params.topMargin = marginTop;
-            progressBar.setLayoutParams(params);
-            layout.addView(progressBar);
+            progressDialogBar.setLayoutParams(params);
+            layout.addView(progressDialogBar);
 
             // Texto de porcentagem
-            TextView pctView = new TextView(activity);
-            pctView.setText(progress + "%");
-            pctView.setTextColor(Color.WHITE);
-            pctView.setTextSize(14);
-            pctView.setGravity(Gravity.CENTER);
-            pctView.setTag("percent");
+            progressDialogPct = new TextView(activity);
+            progressDialogPct.setText(progress + "%");
+            progressDialogPct.setTextColor(Color.WHITE);
+            progressDialogPct.setTextSize(14);
+            progressDialogPct.setGravity(Gravity.CENTER);
             int marginTop2 = (int) (8 * activity.getResources().getDisplayMetrics().density);
             FrameLayout.LayoutParams params2 = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             params2.topMargin = marginTop2;
-            pctView.setLayoutParams(params2);
-            layout.addView(pctView);
+            progressDialogPct.setLayoutParams(params2);
+            layout.addView(progressDialogPct);
 
             progressDialog.setContentView(layout);
 
@@ -287,21 +295,16 @@ public class UIBridge {
         activity.runOnUiThread(() -> {
             if (progressDialog == null || !progressDialog.isShowing()) return;
 
-            View progressView = progressDialog.findViewWithTag("progress");
-            if (progressView instanceof ProgressBar) {
-                ((ProgressBar) progressView).setProgress(progress);
+            if (progressDialogBar != null) {
+                progressDialogBar.setProgress(progress);
             }
 
-            View pctView = progressDialog.findViewWithTag("percent");
-            if (pctView instanceof TextView) {
-                ((TextView) pctView).setText(progress + "%");
+            if (progressDialogPct != null) {
+                progressDialogPct.setText(progress + "%");
             }
 
-            if (message != null) {
-                View msgView = progressDialog.findViewWithTag("message");
-                if (msgView instanceof TextView) {
-                    ((TextView) msgView).setText(message);
-                }
+            if (message != null && progressDialogMsg != null) {
+                progressDialogMsg.setText(message);
             }
         });
     }
@@ -372,14 +375,8 @@ public class UIBridge {
 
     private void runJs(String script) {
         activity.runOnUiThread(() -> {
-            if (activity instanceof android.webkit.WebView.Provider) {
-                // WebView não está diretamente acessível, usar evaluateJavascript
-                try {
-                    java.lang.reflect.Method method = activity.getClass().getMethod("evaluateJavascript", String.class);
-                    method.invoke(activity, script);
-                } catch (Exception e) {
-                    // Fallback: não fazer nada
-                }
+            if (webView != null) {
+                webView.evaluateJavascript(script, null);
             }
         });
     }
