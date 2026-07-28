@@ -15,6 +15,7 @@ import com.filemanager.app.core.ObserverManager;
 import com.filemanager.app.core.OperationManager;
 import com.filemanager.app.core.PermissionManager;
 import com.filemanager.app.core.StorageDetector;
+import com.filemanager.app.core.TestManager;
 import com.filemanager.app.core.UIBridge;
 import com.filemanager.app.service.FileManagerService;
 
@@ -58,6 +59,7 @@ public class FileBridge {
     private ArchiveManager archiveManager;
     private MediaPlayerManager mediaPlayerManager;
     private UIBridge uiBridge;
+    private TestManager testManager;
     private boolean initialized = false;
 
     public FileBridge(Activity activity) {
@@ -79,6 +81,7 @@ public class FileBridge {
         archiveManager = new ArchiveManager(activity.getApplicationContext());
         mediaPlayerManager = new MediaPlayerManager(activity);
         uiBridge = new UIBridge(activity);
+        testManager = new TestManager(activity.getApplicationContext(), activity);
 
         // Configurar cancelamento via Service
         FileManagerService.setCancelCallback(() -> operationManager.cancelAll());
@@ -1077,6 +1080,19 @@ public class FileBridge {
     }
 
     // ========================================
+    //  NOVOS MÉTODOS — TESTES
+    // ========================================
+
+    /**
+     * Executa suite completa de testes.
+     */
+    @JavascriptInterface
+    public String runTests() {
+        if (testManager == null) init();
+        return testManager.runAllTests();
+    }
+
+    // ========================================
     //  NOVOS MÉTODOS — SERVICE
     // ========================================
 
@@ -1395,6 +1411,7 @@ public class FileBridge {
                 result.put("archiveManager", archiveManager != null ? "OK" : "FAIL");
                 result.put("mediaPlayerManager", mediaPlayerManager != null ? "OK" : "FAIL");
                 result.put("uiBridge", uiBridge != null ? "OK" : "FAIL");
+                result.put("testManager", testManager != null ? "OK" : "FAIL");
             } else {
                 result.put("managers", "WARN:not_initialized");
             }
