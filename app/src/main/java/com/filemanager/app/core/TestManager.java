@@ -184,7 +184,7 @@ public class TestManager {
 
         // Test 1: Detectar volumes
         test("SD_detectVolumes", () -> {
-            var volumes = sd.detectAllVolumes();
+            java.util.List<StorageDetector.StorageVolumeInfo> volumes = sd.detectAllVolumes();
             assert volumes != null && !volumes.isEmpty() : "Nenhum volume detectado";
             assert volumes.get(0).id.equals("internal") : "Primeiro volume não é internal";
         });
