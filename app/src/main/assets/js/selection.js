@@ -15,7 +15,7 @@ import {
 //  BRIDGE HELPERS (file operations via Android)
 // ========================
 
-function hasNativeBridge() {
+export function hasNativeBridge() {
     return typeof window.FileBridge !== 'undefined' && window.FileBridge !== null;
 }
 

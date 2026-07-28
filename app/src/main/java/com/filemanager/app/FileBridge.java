@@ -2,11 +2,15 @@ package com.filemanager.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
 import android.webkit.JavascriptInterface;
+
+import androidx.core.content.FileProvider;
 
 import com.filemanager.app.core.ArchiveManager;
 import com.filemanager.app.core.DatabaseManager;
@@ -581,6 +585,61 @@ public class FileBridge {
     }
 
     // ========================================
+    //  INFO DETALHADA DE ARQUIVO/PASTA
+    // ========================================
+
+    /**
+     * Retorna informações detalhadas de um arquivo ou pasta.
+     */
+    @JavascriptInterface
+    public String getFileInfo(String path) {
+        try {
+            File file = resolvePath(path);
+            if (file == null || !file.exists()) {
+                return errorJson("Item não encontrado");
+            }
+
+            JSONObject info = new JSONObject();
+            info.put("name", file.getName());
+            info.put("path", file.getAbsolutePath());
+            info.put("isDirectory", file.isDirectory());
+            info.put("isFile", file.isFile());
+            info.put("isHidden", file.isHidden());
+            info.put("canRead", file.canRead());
+            info.put("canWrite", file.canWrite());
+            info.put("canExecute", file.canExecute());
+            info.put("lastModified", file.lastModified());
+            info.put("lastModifiedDate", new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(new java.util.Date(file.lastModified())));
+
+            if (file.isFile()) {
+                info.put("size", file.length());
+                info.put("sizeFormatted", formatSize(file.length()));
+                String ext = getExtension(file.getName()).toLowerCase();
+                info.put("extension", ext);
+                info.put("mimeType", java.net.URLConnection.guessContentTypeFromName(file.getName()));
+            } else {
+                long size = getDirSize(file);
+                int childCount = 0;
+                File[] children = file.listFiles();
+                if (children != null) childCount = children.length;
+                info.put("size", size);
+                info.put("sizeFormatted", formatSize(size));
+                info.put("childCount", childCount);
+                info.put("extension", "");
+            }
+
+            return info.toString();
+        } catch (Exception e) {
+            return errorJson("Erro: " + e.getMessage());
+        }
+    }
+
+    private String getExtension(String name) {
+        int dot = name.lastIndexOf('.');
+        return (dot >= 0) ? name.substring(dot + 1) : "";
+    }
+
+    // ========================================
     //  NOVOS MÉTODOS — PERMISSÕES
     // ========================================
 
@@ -848,6 +907,124 @@ public class FileBridge {
     }
 
     // ========================================
+    //  NOVOS MÉTODOS — PIN (FIXAR)
+    // ========================================
+
+    /**
+     * Fixa (pin) um arquivo/pasta no DatabaseManager (TYPE_BOOKMARK).
+     */
+    @JavascriptInterface
+    public String pinFile(String path, String name) {
+        try {
+            if (databaseManager == null) init();
+            long id = databaseManager.addBookmark(path, name, DatabaseManager.TYPE_BOOKMARK, null);
+            JSONObject result = new JSONObject();
+            result.put("success", id > 0);
+            result.put("id", id);
+            result.put("pinned", true);
+            return result.toString();
+        } catch (Exception e) {
+            return errorJson("Erro ao fixar: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove fixação (unpin) de um arquivo.
+     */
+    @JavascriptInterface
+    public String unpinFile(String path) {
+        try {
+            if (databaseManager == null) init();
+            int deleted = databaseManager.removeBookmark(path, DatabaseManager.TYPE_BOOKMARK);
+            JSONObject result = new JSONObject();
+            result.put("success", deleted > 0);
+            result.put("pinned", false);
+            return result.toString();
+        } catch (Exception e) {
+            return errorJson("Erro ao desafixar: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Verifica se um arquivo está fixado (pinned).
+     */
+    @JavascriptInterface
+    public boolean isPinned(String path) {
+        if (databaseManager == null) init();
+        return databaseManager.isBookmark(path, DatabaseManager.TYPE_BOOKMARK);
+    }
+
+    /**
+     * Retorna todos os arquivos fixados.
+     */
+    @JavascriptInterface
+    public String getPinnedFiles() {
+        if (databaseManager == null) init();
+        return databaseManager.getBookmarksJson(DatabaseManager.TYPE_BOOKMARK);
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — SHORTCUT (ATALHO)
+    // ========================================
+
+    /**
+     * Cria atalho na tela inicial do Android (7.1+).
+     * Para versões anteriores, cria um marcador no banco.
+     */
+    @JavascriptInterface
+    public String createShortcut(String path, String name) {
+        try {
+            File file = resolvePath(path);
+            if (file == null || !file.exists()) {
+                return errorJson("Arquivo não encontrado");
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+                // Android 7.1+: ShortcutManager
+                android.content.pm.ShortcutManager sm =
+                    activity.getSystemService(android.content.pm.ShortcutManager.class);
+                if (sm != null && sm.isRequestPinShortcutSupported()) {
+                    String shortcutId = "fm_" + name.replaceAll("[^a-zA-Z0-9]", "_");
+
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setDataAndType(
+                        FileProvider.getUriForFile(activity, activity.getPackageName() + ".provider", file),
+                        "*/*"
+                    );
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                    android.content.pm.ShortcutInfo shortcut = new android.content.pm.ShortcutInfo.Builder(activity, shortcutId)
+                        .setShortLabel(name)
+                        .setLongLabel(path)
+                        .setIntent(intent)
+                        .build();
+
+                    sm.requestPinShortcut(shortcut, null);
+
+                    JSONObject result = new JSONObject();
+                    result.put("success", true);
+                    result.put("shortcutId", shortcutId);
+                    result.put("method", "ShortcutManager");
+                    return result.toString();
+                }
+            }
+
+            // Fallback: salvar como bookmark TYPE_BOOKMARK
+            if (databaseManager == null) init();
+            long id = databaseManager.addBookmark(path, name, DatabaseManager.TYPE_BOOKMARK,
+                "{\"type\":\"shortcut\"}");
+            JSONObject result = new JSONObject();
+            result.put("success", id > 0);
+            result.put("id", id);
+            result.put("method", "bookmark");
+            return result.toString();
+
+        } catch (Exception e) {
+            return errorJson("Erro ao criar atalho: " + e.getMessage());
+        }
+    }
+
+    // ========================================
     //  NOVOS MÉTODOS — FILE OBSERVER
     // ========================================
 
@@ -953,6 +1130,164 @@ public class FileBridge {
     }
 
     // ========================================
+    //  NOVOS MÉTODOS — LIXEIRA
+    // ========================================
+
+    /**
+     * Move arquivo/pasta para lixeira (.trash/).
+     * Não exclui permanentemente — permite restauração.
+     */
+    @JavascriptInterface
+    public String trashItem(String path) {
+        try {
+            File file = resolvePath(path);
+            if (file == null || !file.exists()) {
+                return errorJson("Arquivo não encontrado");
+            }
+
+            File root = new File(getRootPath());
+            File trashDir = new File(root, ".trash");
+            if (!trashDir.exists()) trashDir.mkdirs();
+
+            // Timestamp prefix para evitar colisões de nome
+            String safeName = System.currentTimeMillis() + "_" + file.getName();
+            File dest = new File(trashDir, safeName);
+
+            boolean moved = file.renameTo(dest);
+            if (!moved) {
+                // Fallback: copiar + deletar
+                moved = copyFileRecursive(file, dest);
+                if (moved) file.delete();
+            }
+
+            if (moved) {
+                JSONObject result = new JSONObject();
+                result.put("success", true);
+                result.put("trashPath", dest.getAbsolutePath());
+                result.put("originalPath", file.getAbsolutePath());
+                return result.toString();
+            } else {
+                return errorJson("Não foi possível mover para lixeira");
+            }
+        } catch (Exception e) {
+            return errorJson("Erro: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Restaura arquivo da lixeira para o caminho original.
+     */
+    @JavascriptInterface
+    public String restoreTrashItem(String trashPath, String originalPath) {
+        try {
+            File trashFile = new File(trashPath);
+            if (!trashFile.exists()) {
+                return errorJson("Arquivo não encontrado na lixeira");
+            }
+
+            File dest = new File(originalPath);
+            File parentDir = dest.getParentFile();
+            if (parentDir != null && !parentDir.exists()) parentDir.mkdirs();
+
+            // Se já existe no destino, adicionar suffix
+            if (dest.exists()) {
+                String baseName = dest.getName().replaceFirst("\\.[^.]+$", "");
+                String ext = dest.getName().contains(".") ? "." + dest.getName().substring(dest.getName().lastIndexOf('.') + 1) : "";
+                int counter = 1;
+                while (dest.exists()) {
+                    dest = new File(parentDir, baseName + " (" + counter + ")" + ext);
+                    counter++;
+                }
+            }
+
+            boolean moved = trashFile.renameTo(dest);
+            if (!moved) {
+                moved = copyFileRecursive(trashFile, dest);
+                if (moved) trashFile.delete();
+            }
+
+            if (moved) {
+                JSONObject result = new JSONObject();
+                result.put("success", true);
+                result.put("restoredPath", dest.getAbsolutePath());
+                return result.toString();
+            } else {
+                return errorJson("Não foi possível restaurar");
+            }
+        } catch (Exception e) {
+            return errorJson("Erro: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Exclui permanentemente da lixeira.
+     */
+    @JavascriptInterface
+    public String permanentDeleteTrash(String trashPath) {
+        try {
+            File file = new File(trashPath);
+            if (!file.exists()) {
+                return errorJson("Arquivo não encontrado");
+            }
+            boolean deleted = file.isDirectory() ? deleteRecursive(file) : file.delete();
+            if (deleted) {
+                JSONObject result = new JSONObject();
+                result.put("success", true);
+                return result.toString();
+            } else {
+                return errorJson("Não foi possível excluir");
+            }
+        } catch (Exception e) {
+            return errorJson("Erro: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lista arquivos na lixeira.
+     */
+    @JavascriptInterface
+    public String listTrashItems() {
+        try {
+            File root = new File(getRootPath());
+            File trashDir = new File(root, ".trash");
+            if (!trashDir.exists()) {
+                return "[]";
+            }
+
+            File[] files = trashDir.listFiles();
+            if (files == null || files.length == 0) {
+                return "[]";
+            }
+
+            JSONArray arr = new JSONArray();
+            for (File file : files) {
+                JSONObject item = new JSONObject();
+                item.put("name", file.getName());
+                item.put("path", file.getAbsolutePath());
+                item.put("isDirectory", file.isDirectory());
+                item.put("size", file.isDirectory() ? getDirSize(file) : file.length());
+                item.put("lastModified", file.lastModified());
+                arr.put(item);
+            }
+            return arr.toString();
+        } catch (Exception e) {
+            return errorJson("Erro: " + e.getMessage());
+        }
+    }
+
+    private boolean deleteRecursive(File file) {
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursive(child);
+                }
+            }
+        }
+        return file.delete();
+    }
+
+    // ========================================
     //  NOVOS MÉTODOS — MÍDIA
     // ========================================
 
@@ -999,6 +1334,120 @@ public class FileBridge {
     public String shareFile(String filePath) {
         if (mediaPlayerManager == null) init();
         return mediaPlayerManager.shareFile(filePath);
+    }
+
+    /**
+     * Compartilha múltiplos arquivos.
+     */
+    @JavascriptInterface
+    public String shareMultiple(String pathsJson) {
+        if (mediaPlayerManager == null) init();
+        return mediaPlayerManager.shareMultiple(pathsJson);
+    }
+
+    // ========================================
+    //  NOVOS MÉTODOS — APPS INSTALADOS
+    // ========================================
+
+    /**
+     * Retorna lista de apps instalados.
+     * @param includeSystem true para incluir apps do sistema
+     */
+    @JavascriptInterface
+    public String getInstalledApps(boolean includeSystem) {
+        try {
+            android.content.pm.PackageManager pm = activity.getPackageManager();
+            java.util.List<PackageInfo> packages = pm.getInstalledPackages(0);
+            JSONArray apps = new JSONArray();
+
+            for (PackageInfo pkg : packages) {
+                boolean isSystem = (pkg.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+                if (isSystem && !includeSystem) continue;
+
+                JSONObject app = new JSONObject();
+                app.put("name", pkg.applicationInfo.loadLabel(pm).toString());
+                app.put("packageName", pkg.packageName);
+                app.put("versionName", pkg.versionName != null ? pkg.versionName : "—");
+                app.put("versionCode", pkg.versionCode);
+                app.put("isSystem", isSystem);
+
+                // Tamanho do APK
+                try {
+                    String apkPath = pkg.applicationInfo.sourceDir;
+                    if (apkPath != null) {
+                        File apkFile = new File(apkPath);
+                        app.put("size", apkFile.length());
+                        app.put("sizeFormatted", formatSize(apkFile.length()));
+                        app.put("apkPath", apkPath);
+                    }
+                } catch (Exception ignored) {}
+
+                // Data de instalação
+                try {
+                    app.put("firstInstall", pkg.firstInstallTime);
+                    app.put("lastUpdate", pkg.lastUpdateTime);
+                } catch (Exception ignored) {}
+
+                apps.put(app);
+            }
+
+            return apps.toString();
+        } catch (Exception e) {
+            return errorJson("Erro ao listar apps: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Desinstala um app pelo package name.
+     */
+    @JavascriptInterface
+    public String uninstallApp(String packageName) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
+            intent.setData(Uri.parse("package:" + packageName));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("packageName", packageName);
+            return result.toString();
+        } catch (Exception e) {
+            return errorJson("Erro ao desinstalar: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Backup do APK de um app.
+     */
+    @JavascriptInterface
+    public String backupApk(String packageName, String destDir) {
+        try {
+            android.content.pm.PackageManager pm = activity.getPackageManager();
+            PackageInfo pkg = pm.getPackageInfo(packageName, 0);
+            String apkPath = pkg.applicationInfo.sourceDir;
+            if (apkPath == null) return errorJson("APK não encontrado");
+
+            File source = new File(apkPath);
+            File dest = new File(destDir, packageName + ".apk");
+
+            java.io.InputStream in = new java.io.FileInputStream(source);
+            java.io.OutputStream out = new java.io.FileOutputStream(dest);
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            in.close();
+            out.close();
+
+            JSONObject result = new JSONObject();
+            result.put("success", true);
+            result.put("backupPath", dest.getAbsolutePath());
+            result.put("size", dest.length());
+            return result.toString();
+        } catch (Exception e) {
+            return errorJson("Erro ao fazer backup: " + e.getMessage());
+        }
     }
 
     // ========================================
@@ -1473,7 +1922,16 @@ public class FileBridge {
             writer.flush();
             writer.close();
 
-            final Uri fileUri = Uri.fromFile(logFile);
+            final Uri fileUri;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                fileUri = FileProvider.getUriForFile(
+                    activity,
+                    activity.getPackageName() + ".fileprovider",
+                    logFile
+                );
+            } else {
+                fileUri = Uri.fromFile(logFile);
+            }
             final Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("text/plain");
             shareIntent.putExtra(Intent.EXTRA_STREAM, fileUri);

@@ -15,7 +15,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 
-// FileProvider removed - using direct URI approach
+import androidx.core.content.FileProvider;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,6 +41,21 @@ public class UpdateManager {
 
     public UpdateManager(Activity activity) {
         this.activity = activity;
+    }
+
+    // ========================================
+    //  FILE PROVIDER HELPER
+    // ========================================
+
+    private Uri getFileUri(File file) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            return FileProvider.getUriForFile(
+                activity,
+                activity.getPackageName() + ".fileprovider",
+                file
+            );
+        }
+        return Uri.fromFile(file);
     }
 
     // ========================
@@ -223,9 +238,9 @@ public class UpdateManager {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-            // Use direct file URI (works for apps targeting debug/self-signed)
+            // Use FileProvider for Android 7+
             intent.setDataAndType(
-                Uri.fromFile(apkFile),
+                getFileUri(apkFile),
                 "application/vnd.android.package-archive"
             );
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

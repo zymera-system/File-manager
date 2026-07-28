@@ -13,6 +13,8 @@ import android.util.Base64;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 
+import androidx.core.content.FileProvider;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -88,6 +90,25 @@ public class MediaPlayerManager {
     }
 
     // ========================================
+    //  FILE PROVIDER HELPER
+    // ========================================
+
+    /**
+     * Obtém um content:// URI via FileProvider (Android 7+).
+     * Fallback para file:// em versões anteriores.
+     */
+    private Uri getFileUri(File file) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            return FileProvider.getUriForFile(
+                activity,
+                activity.getPackageName() + ".fileprovider",
+                file
+            );
+        }
+        return Uri.fromFile(file);
+    }
+
+    // ========================================
     //  ABRIR MÍDIA
     // ========================================
 
@@ -103,7 +124,7 @@ public class MediaPlayerManager {
             }
 
             String mimeType = getMimeType(filePath);
-            Uri uri = Uri.fromFile(file);
+            Uri uri = getFileUri(file);
 
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setDataAndType(uri, mimeType);
@@ -138,7 +159,7 @@ public class MediaPlayerManager {
             }
 
             String mimeType = getMimeType(filePath);
-            Uri uri = Uri.fromFile(file);
+            Uri uri = getFileUri(file);
 
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setDataAndType(uri, mimeType);
@@ -328,7 +349,7 @@ public class MediaPlayerManager {
             }
 
             String mimeType = getMimeType(filePath);
-            Uri uri = Uri.fromFile(file);
+            Uri uri = getFileUri(file);
 
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType(mimeType);
@@ -365,7 +386,7 @@ public class MediaPlayerManager {
                 String path = paths.getString(i);
                 File file = new File(path);
                 if (file.exists()) {
-                    uris.add(Uri.fromFile(file));
+                    uris.add(getFileUri(file));
                     if (i == 0) {
                         mimeType = getMimeType(path);
                     }

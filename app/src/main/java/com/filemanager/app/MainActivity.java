@@ -38,6 +38,7 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
     private FileBridge fileBridge;
     private StorageBridge storageBridge;
     private PermissionManager permissionManager;
+    private UpdateManager updateManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +48,7 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
         // Inicializa as bridges
         fileBridge = new FileBridge(this);
         storageBridge = new StorageBridge(this);
+        updateManager = new UpdateManager(this);
 
         // Configura o WebView
         setupWebView();
@@ -75,6 +77,7 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
         // Registra as bridges JavaScript
         webView.addJavascriptInterface(fileBridge, "FileBridge");
         webView.addJavascriptInterface(storageBridge, "StorageBridge");
+        webView.addJavascriptInterface(updateManager, "UpdateManager");
 
         // WebViewClient — tratamento de carregamento e erros
         webView.setWebViewClient(new WebViewClient() {
@@ -116,7 +119,7 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
             public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
                 Log.e(TAG, "=== onReceivedSslError ===");
                 Log.e(TAG, "  Error: " + error);
-                handler.proceed();
+                handler.cancel();
             }
         });
 
@@ -230,6 +233,14 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
     // ========================================
     //  LIFECYCLE
     // ========================================
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (permissionManager != null) {
+            permissionManager.handlePermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
 
     @Override
     protected void onResume() {

@@ -51,16 +51,16 @@ public class PermissionManager {
     public boolean hasStoragePermission() {
         int sdk = Build.VERSION.SDK_INT;
 
-        if (sdk >= 30) {
-            // Android 11+: verificar MANAGE_EXTERNAL_STORAGE
-            return Environment.isExternalStorageManager();
-        } else if (sdk >= 33) {
-            // Android 13+: permissões granulares
+        if (sdk >= 33) {
+            // Android 13+: permissões granulares de mídia
             return hasPermission(PERM_READ_MEDIA_IMAGES)
                 && hasPermission(PERM_READ_MEDIA_VIDEO)
                 && hasPermission(PERM_READ_MEDIA_AUDIO);
+        } else if (sdk >= 30) {
+            // Android 11-12: MANAGE_EXTERNAL_STORAGE
+            return Environment.isExternalStorageManager();
         } else {
-            // Android ≤ 12: permissões legadas
+            // Android ≤ 10: permissões legadas
             return hasPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE)
                 && hasPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
@@ -78,10 +78,10 @@ public class PermissionManager {
     public void requestStoragePermissions() {
         int sdk = Build.VERSION.SDK_INT;
 
-        if (sdk >= 30) {
-            requestManageStoragePermission();
-        } else if (sdk >= 33) {
+        if (sdk >= 33) {
             requestMediaPermissions();
+        } else if (sdk >= 30) {
+            requestManageStoragePermission();
         } else {
             requestLegacyPermissions();
         }
@@ -222,14 +222,14 @@ public class PermissionManager {
             status.put("sdkVersion", sdk);
             status.put("hasStoragePermission", hasStoragePermission());
 
-            if (sdk >= 30) {
-                status.put("strategy", "manage_storage");
-                status.put("isManager", Environment.isExternalStorageManager());
-            } else if (sdk >= 33) {
+            if (sdk >= 33) {
                 status.put("strategy", "media_granular");
                 status.put("hasReadImages", hasPermission(PERM_READ_MEDIA_IMAGES));
                 status.put("hasReadVideo", hasPermission(PERM_READ_MEDIA_VIDEO));
                 status.put("hasReadAudio", hasPermission(PERM_READ_MEDIA_AUDIO));
+            } else if (sdk >= 30) {
+                status.put("strategy", "manage_storage");
+                status.put("isManager", Environment.isExternalStorageManager());
             } else {
                 status.put("strategy", "legacy");
                 status.put("hasRead", hasPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE));

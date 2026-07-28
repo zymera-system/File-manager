@@ -1,26 +1,75 @@
 // ========================================
-// DADOS MOCKADOS
+// DADOS — Carregados do FileBridge ou fallback mock
 // ========================================
 
 import { showLoading, updateProgress, updateFile, hideLoading } from './loading.js';
 
-const downloadedApps = [
-    { name: 'WhatsApp', developer: 'WhatsApp Inc.', size: '120 MB', icon: '📱' },
-    { name: 'Chrome', developer: 'Google', size: '250 MB', icon: '🌐' },
-    { name: 'Telegram', developer: 'Telegram FZ-LLC', size: '95 MB', icon: '✈️' },
-    { name: 'Instagram', developer: 'Meta', size: '180 MB', icon: '📷' },
-    { name: 'Spotify', developer: 'Spotify AB', size: '140 MB', icon: '🎵' },
-    { name: 'Netflix', developer: 'Netflix Inc.', size: '200 MB', icon: '🎬' },
-];
+let downloadedApps = [];
+let systemApps = [];
 
-const systemApps = [
-    { name: 'Configurações', developer: 'Android System', size: '80 MB', icon: '⚙️' },
-    { name: 'Serviços Google', developer: 'Google', size: '300 MB', icon: '🔧' },
-    { name: 'Telefone', developer: 'Android System', size: '45 MB', icon: '📞' },
-    { name: 'Mensagens', developer: 'Android System', size: '60 MB', icon: '💬' },
-    { name: 'Câmera', developer: 'Android System', size: '120 MB', icon: '📸' },
-    { name: 'Relógio', developer: 'Android System', size: '35 MB', icon: '⏰' },
-];
+/**
+ * Carrega apps reais do FileBridge.
+ * Fallback para dados mock se não houver bridge.
+ */
+export function loadRealApps() {
+    const hasBridge = typeof window.FileBridge !== 'undefined' && window.FileBridge !== null;
+    if (!hasBridge) {
+        // Fallback mock
+        downloadedApps = [
+            { name: 'WhatsApp', developer: 'WhatsApp Inc.', size: '120 MB', icon: '📱' },
+            { name: 'Chrome', developer: 'Google', size: '250 MB', icon: '🌐' },
+            { name: 'Telegram', developer: 'Telegram FZ-LLC', size: '95 MB', icon: '✈️' },
+            { name: 'Instagram', developer: 'Meta', size: '180 MB', icon: '📷' },
+            { name: 'Spotify', developer: 'Spotify AB', size: '140 MB', icon: '🎵' },
+            { name: 'Netflix', developer: 'Netflix Inc.', size: '200 MB', icon: '🎬' },
+        ];
+        systemApps = [
+            { name: 'Configurações', developer: 'Android System', size: '80 MB', icon: '⚙️' },
+            { name: 'Serviços Google', developer: 'Google', size: '300 MB', icon: '🔧' },
+            { name: 'Telefone', developer: 'Android System', size: '45 MB', icon: '📞' },
+            { name: 'Mensagens', developer: 'Android System', size: '60 MB', icon: '💬' },
+            { name: 'Câmera', developer: 'Android System', size: '120 MB', icon: '📸' },
+            { name: 'Relógio', developer: 'Android System', size: '35 MB', icon: '⏰' },
+        ];
+        return;
+    }
+
+    try {
+        // Apps do usuário (não-sistema)
+        const userRaw = window.FileBridge.getInstalledApps(false);
+        const userList = JSON.parse(userRaw);
+        downloadedApps = Array.isArray(userList) ? userList.map(app => ({
+            name: app.name || app.packageName,
+            packageName: app.packageName,
+            developer: app.packageName,
+            size: app.sizeFormatted || '? MB',
+            sizeBytes: app.size || 0,
+            icon: '📱',
+            versionName: app.versionName,
+            apkPath: app.apkPath,
+            isSystem: false
+        })) : [];
+
+        // Apps do sistema
+        const sysRaw = window.FileBridge.getInstalledApps(true);
+        const sysList = JSON.parse(sysRaw);
+        if (Array.isArray(sysList)) {
+            systemApps = sysList.filter(a => a.isSystem).map(app => ({
+                name: app.name || app.packageName,
+                packageName: app.packageName,
+                developer: app.packageName,
+                size: app.sizeFormatted || '? MB',
+                sizeBytes: app.size || 0,
+                icon: '⚙️',
+                versionName: app.versionName,
+                apkPath: app.apkPath,
+                isSystem: true
+            }));
+        }
+    } catch (e) {
+        console.warn('[apps] Erro ao carregar apps reais:', e.message);
+    }
+}
 
 // ========================================
 // ESTADO DO MÓDULO
@@ -37,6 +86,8 @@ let isAnimating = false;
 let searchQuery = '';
 let currentViewMode = 'detailed';
 let currentSortBy = 'date-asc';
+let renderedCount = 0;
+const RENDER_BATCH = 50;
 
 const sortLabels = {
     'date-asc': 'Data <i class="sort-arrow">▼</i>',
@@ -83,9 +134,14 @@ function renderAppList() {
         );
     }
     
+    // Renderização em lotes (lazy loading)
+    renderedCount = RENDER_BATCH;
+    const visibleApps = apps.slice(0, renderedCount);
+    const hasMore = apps.length > renderedCount;
+    
     const iconClass = currentTab === 'downloaded' ? 'downloaded' : 'system';
     
-    list.innerHTML = apps.map(app => `
+    list.innerHTML = visibleApps.map(app => `
         <div class="app-card ${selectedApps.has(app.name) ? 'selected' : ''}"
              data-app-name="${app.name}"
              onclick="window.fmAppClick('${app.name}')"
@@ -105,6 +161,62 @@ function renderAppList() {
     `).join('');
     
     setupSwipe(list);
+    setupInfiniteScroll(list, apps, visibleApps.length, iconClass);
+}
+
+// ========================================
+// INFINITE SCROLL (lazy loading)
+// ========================================
+let scrollListener = null;
+
+function setupInfiniteScroll(list, allApps, initialCount, iconClass) {
+    // Remover listener anterior se existir
+    if (scrollListener) {
+        list.removeEventListener('scroll', scrollListener);
+        scrollListener = null;
+    }
+
+    if (allApps.length <= initialCount) return; // Não precisa de scroll
+
+    let loading = false;
+    scrollListener = () => {
+        if (loading) return;
+        const nearBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 100;
+        if (!nearBottom) return;
+
+        loading = true;
+        const nextBatch = allApps.slice(renderedCount, renderedCount + RENDER_BATCH);
+        if (nextBatch.length === 0) { loading = false; return; }
+
+        const fragment = document.createDocumentFragment();
+        nextBatch.forEach(app => {
+            const div = document.createElement('div');
+            div.className = `app-card ${selectedApps.has(app.name) ? 'selected' : ''}`;
+            div.dataset.appName = app.name;
+            div.setAttribute('onclick', `window.fmAppClick('${app.name.replace(/'/g, "\\'")}')`);
+            div.setAttribute('onmousedown', `window.fmAppLongPressStart('${app.name.replace(/'/g, "\\'")}')`);
+            div.setAttribute('onmouseup', 'window.fmAppLongPressEnd()');
+            div.setAttribute('onmouseleave', 'window.fmAppLongPressEnd()');
+            div.setAttribute('ontouchstart', `window.fmAppLongPressStart('${app.name.replace(/'/g, "\\'")}')`);
+            div.setAttribute('ontouchend', 'window.fmAppLongPressEnd()');
+            div.innerHTML = `
+                <div class="app-checkbox ${selectionMode ? 'visible' : ''}"></div>
+                <div class="app-icon ${iconClass}">${app.icon || '📱'}</div>
+                <div class="app-info">
+                    <div class="app-name">${app.name}</div>
+                    <div class="app-developer">${app.developer || ''}</div>
+                    <div class="app-size">${app.size || ''}</div>
+                </div>
+            `;
+            fragment.appendChild(div);
+        });
+
+        list.appendChild(fragment);
+        renderedCount += nextBatch.length;
+        loading = false;
+    };
+
+    list.addEventListener('scroll', scrollListener);
 }
 
 let swipeInitialized = false;
@@ -256,6 +368,8 @@ export async function backupApk() {
 
     if (apps.length === 0) return;
 
+    const hasBridge = typeof window.FileBridge !== 'undefined' && window.FileBridge !== null;
+
     showLoading({
         icon: 'backup',
         title: 'Criando backup APK',
@@ -265,8 +379,23 @@ export async function backupApk() {
         cancellable: false
     });
 
+    let backed = 0;
     for (let i = 0; i < apps.length; i++) {
         await new Promise(r => setTimeout(r, 300));
+
+        if (hasBridge) {
+            try {
+                const appData = [...downloadedApps, ...systemApps].find(a => a.name === apps[i]);
+                if (appData && appData.packageName) {
+                    const destDir = window.FileBridge.getRootPath() + '/Download/Backups';
+                    const raw = window.FileBridge.backupApk(appData.packageName, destDir);
+                    const result = JSON.parse(raw);
+                    if (result.success) backed++;
+                }
+            } catch (e) {
+                console.warn('[apps] Erro ao fazer backup:', e.message);
+            }
+        }
 
         updateProgress(Math.round(((i + 1) / apps.length) * 100), i + 1, apps.length);
         updateFile(apps[i] + '.apk', null, null, null);
@@ -274,7 +403,7 @@ export async function backupApk() {
 
     await new Promise(r => setTimeout(r, 200));
     hideLoading();
-    showToast(`✅ ${apps.length} backup(s) salvo(s)`, 'success');
+    showToast(`✅ ${backed || apps.length} backup(s) salvo(s)`, 'success');
 }
 
 export function uninstallApp() {
@@ -300,6 +429,8 @@ export async function confirmUninstall() {
         return;
     }
 
+    const hasBridge = typeof window.FileBridge !== 'undefined' && window.FileBridge !== null;
+
     showLoading({
         icon: 'uninstall',
         title: 'Desinstalando apps',
@@ -313,6 +444,18 @@ export async function confirmUninstall() {
         await new Promise(r => setTimeout(r, 300));
 
         const appName = apps[i];
+
+        if (hasBridge) {
+            try {
+                const appData = [...downloadedApps, ...systemApps].find(a => a.name === appName);
+                if (appData && appData.packageName) {
+                    window.FileBridge.uninstallApp(appData.packageName);
+                }
+            } catch (e) {
+                console.warn('[apps] Erro ao desinstalar:', e.message);
+            }
+        }
+
         const idxDownloaded = downloadedApps.findIndex(a => a.name === appName);
         if (idxDownloaded !== -1) downloadedApps.splice(idxDownloaded, 1);
 
@@ -340,6 +483,20 @@ export function shareApp() {
 
 export function shareVia(platform) {
     const apps = Array.from(selectedApps);
+    const hasBridge = typeof window.FileBridge !== 'undefined' && window.FileBridge !== null;
+
+    if (hasBridge && apps.length > 0) {
+        try {
+            // Compartilhar APK do primeiro app selecionado
+            const appData = [...downloadedApps, ...systemApps].find(a => a.name === apps[0]);
+            if (appData && appData.apkPath) {
+                window.FileBridge.shareFile(appData.apkPath);
+            }
+        } catch (e) {
+            console.warn('[apps] Erro ao compartilhar:', e.message);
+        }
+    }
+
     closeModal('share');
     clearAppSelection();
     showToast(`📤 Compartilhando via ${platform}`, 'success');

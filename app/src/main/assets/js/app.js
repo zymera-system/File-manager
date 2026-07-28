@@ -14,6 +14,7 @@ import { fileSystem } from './fileSystem.js';
 import { moveToTrash, getTrashItems, restoreFromTrash, permanentDelete, getDaysRemaining, loadTrash } from './trash.js';
 import {
     renderAppsPage,
+    loadRealApps,
     switchTab,
     appClick,
     appLongPressStart,
@@ -57,7 +58,8 @@ import {
     setClipboardFilesGetter,
     setClipboardFilesMapGetter,
     hideClipboardBar,
-    showClipboardBarIfActive
+    showClipboardBarIfActive,
+    hasNativeBridge
 } from './selection.js';
 import {
     showLoading,
@@ -115,6 +117,34 @@ import { initErrorHandler } from './errorHandler.js';
 // Expõe resolveVirtualPath como global para que delete.js, modal.js,
 // selection.js etc. possam traduzir caminhos da UI para caminhos reais.
 window.fmGetDevicePath = resolveVirtualPath;
+
+// ========================================
+// BRIDGE: Helper de chamadas seguras ao FileBridge
+// ========================================
+/**
+ * Executa uma chamada ao FileBridge de forma segura.
+ * @param {string} method — nome do método
+ * @param  {...any} args — argumentos
+ * @returns {object|null} resultado parseado ou null em caso de erro
+ */
+window.bridgeCall = function(method, ...args) {
+    try {
+        if (!window.FileBridge || typeof window.FileBridge[method] !== 'function') {
+            console.warn(`[bridge] Método "${method}" não disponível`);
+            return null;
+        }
+        const raw = window.FileBridge[method](...args);
+        if (raw === null || raw === undefined) return { success: true };
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return { raw: raw };
+        }
+    } catch (e) {
+        console.error(`[bridge] Erro em ${method}:`, e.message);
+        return null;
+    }
+};
 
 setClipboardPathGetter(getCurrentPath);
 setClipboardFilesGetter(getFiles);
@@ -179,6 +209,7 @@ window.fmToggleMoreMenu = toggleMoreMenu;
 // Apps page
 window.fmOpenApps = function() {
     closeMenu();
+    loadRealApps();
     navigateToTab('apps');
     renderAppsPage();
     history.pushState({ page: 'apps' }, '');
@@ -354,7 +385,22 @@ window.fmSelectionAction = async function(action) {
             showDeleteModal(selected);
             break;
         case 'share':
-            showToast(`Compartilhando: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const currentPath = getCurrentPath();
+                    const paths = selected.map(name => {
+                        const full = currentPath === '/' ? '/' + name : currentPath + '/' + name;
+                        return window.fmGetDevicePath ? window.fmGetDevicePath(full) : full;
+                    });
+                    if (selected.length === 1) {
+                        window.FileBridge.shareFile(paths[0]);
+                    } else {
+                        window.FileBridge.shareMultiple(JSON.stringify(paths));
+                    }
+                } catch (e) { showToast('Erro ao compartilhar', 'error'); }
+            } else {
+                showToast(`Compartilhando: ${selected.join(', ')}`, 'info');
+            }
             break;
         case 'favorite':
             selected.forEach(name => toggleFavorite(name));
@@ -362,22 +408,100 @@ window.fmSelectionAction = async function(action) {
             renderFiles();
             break;
         case 'pin':
-            showToast(`Fixando: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const curPath = getCurrentPath();
+                    selected.forEach(name => {
+                        const filePath = curPath === '/' ? '/' + name : curPath + '/' + name;
+                        window.FileBridge.pinFile(filePath, name);
+                    });
+                    showToast(`${selected.length} arquivo(s) fixado(s)`, 'success');
+                } catch (e) { showToast('Erro ao fixar arquivo', 'error'); }
+            } else {
+                showToast(`Fixando: ${selected.join(', ')}`, 'info');
+            }
             break;
         case 'compress':
-            showToast(`Compactando: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const curPath = getCurrentPath();
+                    const filesJson = JSON.stringify(selected.map(name =>
+                        curPath === '/' ? '/' + name : curPath + '/' + name
+                    ));
+                    const outputZip = (curPath === '/' ? '/' : curPath + '/') + 'compactado_' + Date.now() + '.zip';
+                    window.FileBridge.compressZip(filesJson, outputZip);
+                    showToast('Compactando arquivos...', 'info');
+                    setTimeout(() => { renderFiles(); }, 1500);
+                } catch (e) { showToast('Erro ao compactar', 'error'); }
+            } else {
+                showToast(`Compactando: ${selected.join(', ')}`, 'info');
+            }
             break;
         case 'extract':
-            showToast(`Extraindo: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const curPath = getCurrentPath();
+                    selected.forEach(name => {
+                        const filePath = curPath === '/' ? '/' + name : curPath + '/' + name;
+                        const destDir = curPath === '/' ? '/' + name.replace(/\.[^.]+$/, '') : curPath + '/' + name.replace(/\.[^.]+$/, '');
+                        window.FileBridge.extractZip(filePath, destDir);
+                    });
+                    showToast('Extraindo arquivos...', 'info');
+                    setTimeout(() => { renderFiles(); }, 1500);
+                } catch (e) { showToast('Erro ao extrair', 'error'); }
+            } else {
+                showToast(`Extraindo: ${selected.join(', ')}`, 'info');
+            }
             break;
         case 'properties':
-            showToast(`Propriedades de: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const curPath = getCurrentPath();
+                    const fileName = selected[0];
+                    const filePath = curPath === '/' ? '/' + fileName : curPath + '/' + fileName;
+                    showProperties(filePath, fileName);
+                } catch (e) { showToast('Erro ao obter propriedades', 'error'); }
+            } else {
+                showToast(`Propriedades de: ${selected.join(', ')}`, 'info');
+            }
             break;
         case 'shortcut':
-            showToast(`Criando atalho: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const curPath = getCurrentPath();
+                    selected.forEach(name => {
+                        const filePath = curPath === '/' ? '/' + name : curPath + '/' + name;
+                        window.FileBridge.createShortcut(filePath, name);
+                    });
+                    showToast(`Atalho(s) criado(s)`, 'success');
+                } catch (e) { showToast('Erro ao criar atalho', 'error'); }
+            } else {
+                showToast(`Criando atalho: ${selected.join(', ')}`, 'info');
+            }
             break;
         case 'duplicate':
-            showToast(`Duplicando: ${selected.join(', ')}`, 'info');
+            if (hasNativeBridge()) {
+                try {
+                    const curPath = getCurrentPath();
+                    selected.forEach(name => {
+                        const src = curPath === '/' ? '/' + name : curPath + '/' + name;
+                        const baseName = name.replace(/\.[^.]+$/, '');
+                        const ext = name.includes('.') ? '.' + name.split('.').pop() : '';
+                        let dest = (curPath === '/' ? '/' : curPath + '/') + baseName + ' (cópia)' + ext;
+                        let counter = 1;
+                        while (window.FileBridge.fileExists(dest)) {
+                            dest = (curPath === '/' ? '/' : curPath + '/') + baseName + ' (cópia ' + (counter + 1) + ')' + ext;
+                            counter++;
+                        }
+                        window.FileBridge.copyFile(src, dest);
+                    });
+                    showToast('Arquivos duplicados', 'success');
+                    clearSelection();
+                    renderFiles();
+                } catch (e) { showToast('Erro ao duplicar', 'error'); }
+            } else {
+                showToast(`Duplicando: ${selected.join(', ')}`, 'info');
+            }
             break;
     }
 };
@@ -934,6 +1058,42 @@ window.addEventListener('popstate', function(event) {
         showToast('Pressione voltar novamente para sair', 'info');
     }
 });
+
+// ===== Propriedades detalhadas =====
+function showProperties(path, name) {
+    try {
+        const raw = window.FileBridge.getFileInfo(path);
+        if (!raw) { showToast('Não foi possível obter informações', 'error'); return; }
+        const info = JSON.parse(raw);
+        if (info.error) { showToast(info.error, 'error'); return; }
+
+        const title = document.getElementById('propModalTitle');
+        const content = document.getElementById('propModalContent');
+        if (!title || !content) return;
+
+        title.textContent = info.name || name;
+        const rows = [
+            ['Tipo', info.isDirectory ? 'Pasta' : 'Arquivo'],
+            ['Caminho', info.path || path],
+            info.isDirectory ? ['Itens', String(info.childCount || 0)] : ['Tamanho', info.sizeFormatted || '—'],
+            info.isDirectory ? null : ['Extensão', info.extension ? '.' + info.extension : '—'],
+            info.isDirectory ? null : ['Tipo MIME', info.mimeType || '—'],
+            ['Modificado', info.lastModifiedDate || '—'],
+            ['Leitura', info.canRead ? '✅' : '❌'],
+            ['Escrita', info.canWrite ? '✅' : '❌'],
+            ['Execução', info.canExecute ? '✅' : '❌'],
+            ['Oculto', info.isHidden ? 'Sim' : 'Não'],
+        ].filter(Boolean);
+
+        content.innerHTML = rows.map(([k, v]) =>
+            `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(128,128,128,0.15)"><span style="color:var(--text-secondary,#888)">${k}</span><span style="text-align:right;word-break:break-all;max-width:55%">${v}</span></div>`
+        ).join('');
+
+        document.getElementById('propertiesModal').classList.add('open');
+    } catch (e) {
+        showToast('Erro ao obter propriedades', 'error');
+    }
+}
 
 // ===== BRIDGE: Compatibilidade Android =====
 // Mapeia window.Android (padrão antigo) para nossas bridges
