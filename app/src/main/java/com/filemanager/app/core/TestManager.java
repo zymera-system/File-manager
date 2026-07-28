@@ -445,7 +445,7 @@ public class TestManager {
         AssertionError(String msg) { super(msg); }
     }
 
-    private void assert(boolean condition, String message) throws AssertionError {
+    private void assertTrue(boolean condition, String message) throws AssertionError {
         if (!condition) throw new AssertionError(message);
     }
 
