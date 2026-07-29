@@ -367,10 +367,17 @@ public class UIBridge {
 
     private void notifyJsCallback(String callbackName, String value) {
         if (callbackName == null || callbackName.isEmpty()) return;
-        String escaped = value != null ? value.replace("\\", "\\\\").replace("\"", "\\\"") : "null";
-        String script = String.format("if(window.%s) window.%s(\"%s\");",
-            callbackName, callbackName, escaped);
-        runJs(script);
+        // SEGURANÇA: Validar callbackName contra whitelist alfanumérica
+        if (!callbackName.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) return;
+        try {
+            org.json.JSONObject json = new org.json.JSONObject();
+            json.put("value", value != null ? value : org.json.JSONObject.NULL);
+            String script = String.format("if(window.%s) window.%s(%s);",
+                callbackName, callbackName, json.toString());
+            runJs(script);
+        } catch (org.json.JSONException e) {
+            // Silently ignore invalid data
+        }
     }
 
     private void runJs(String script) {

@@ -384,9 +384,11 @@ public class StorageBridge {
             // Em Android, não é possível ejetar programaticamente sem permissões system-level.
             // Guiar o usuário com instruções.
             if (activity instanceof MainActivity) {
-                String script = "if (window.fmShowEjectInstructions) window.fmShowEjectInstructions('"
-                    + (path != null ? path.replace("'", "\\'") : "")
-                    + "');";
+                // SEGURANÇA: Usar JSONObject para serialização segura
+                JSONObject jsData = new JSONObject();
+                jsData.put("path", path != null ? path : "");
+                String script = "if (window.fmShowEjectInstructions) window.fmShowEjectInstructions("
+                    + jsData.toString() + ");";
                 ((MainActivity) activity).evaluateJavascript(script);
             }
             JSONObject result = new JSONObject();

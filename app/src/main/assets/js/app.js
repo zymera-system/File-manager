@@ -1174,6 +1174,17 @@ window.addEventListener('popstate', function(event) {
     }
 });
 
+// ===== UTILITÁRIO: Escape HTML =====
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ===== Propriedades detalhadas =====
 function showProperties(path, name) {
     try {
@@ -1202,7 +1213,7 @@ function showProperties(path, name) {
         ].filter(Boolean);
 
         content.innerHTML = rows.map(([k, v]) =>
-            `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(128,128,128,0.15)"><span style="color:var(--text-secondary,#888)">${k}</span><span style="text-align:right;word-break:break-all;max-width:55%">${v}</span></div>`
+            `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(128,128,128,0.15)"><span style="color:var(--text-secondary,#888)">${escapeHtml(k)}</span><span style="text-align:right;word-break:break-all;max-width:55%">${escapeHtml(String(v))}</span></div>`
         ).join('');
 
         document.getElementById('propertiesModal').classList.add('open');

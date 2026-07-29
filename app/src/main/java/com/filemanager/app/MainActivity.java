@@ -69,10 +69,10 @@ public class MainActivity extends Activity implements PermissionManager.Permissi
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
+        settings.setAllowFileAccessFromFileURLs(true);  // Necessário para ES modules (file:// → file://)
+        settings.setAllowUniversalAccessFromFileURLs(false);  // SEGURANÇA: impede JS de acessar http/https
 
         // Registra as bridges JavaScript
         webView.addJavascriptInterface(fileBridge, "FileBridge");

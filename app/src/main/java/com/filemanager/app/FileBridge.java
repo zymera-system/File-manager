@@ -353,17 +353,15 @@ public class FileBridge {
     }
 
     private boolean copyFileRecursive(File source, File dest) {
-        try {
-            java.io.FileInputStream fis = new java.io.FileInputStream(source);
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(dest);
+        // SEGURANÇA: try-with-resources para evitar file descriptor leak
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(source);
+             java.io.FileOutputStream fos = new java.io.FileOutputStream(dest)) {
             byte[] buffer = new byte[8192];
             int bytesRead;
             while ((bytesRead = fis.read(buffer)) != -1) {
                 fos.write(buffer, 0, bytesRead);
             }
             fos.flush();
-            fos.close();
-            fis.close();
             dest.setLastModified(source.lastModified());
             return true;
         } catch (IOException e) {
@@ -1223,11 +1221,16 @@ public class FileBridge {
                 // Registrar no DatabaseManager para persistência
                 if (databaseManager != null) {
                     try {
+                        // SEGURANÇA: Usar JSONObject para serialização segura do metadata
+                        JSONObject metadata = new JSONObject();
+                        metadata.put("originalPath", file.getAbsolutePath());
+                        metadata.put("trashPath", dest.getAbsolutePath());
+
                         databaseManager.addBookmark(
                             dest.getAbsolutePath(),
                             file.getName(),
                             DatabaseManager.TYPE_TRASH,
-                            "{\"originalPath\":\"" + file.getAbsolutePath() + "\",\"trashPath\":\"" + dest.getAbsolutePath() + "\"}"
+                            metadata.toString()
                         );
                     } catch (Exception dbErr) {
                         Log.w(TAG, "Erro ao registrar lixeira no DB: " + dbErr.getMessage());
@@ -1511,15 +1514,15 @@ public class FileBridge {
             if (!destDirFile.exists()) destDirFile.mkdirs();
             File dest = new File(destDirFile, packageName + ".apk");
 
-            java.io.InputStream in = new java.io.FileInputStream(source);
-            java.io.OutputStream out = new java.io.FileOutputStream(dest);
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = in.read(buf)) > 0) {
-                out.write(buf, 0, len);
+            // SEGURANÇA: try-with-resources para evitar file descriptor leak
+            try (java.io.InputStream in = new java.io.FileInputStream(source);
+                 java.io.OutputStream out = new java.io.FileOutputStream(dest)) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
             }
-            in.close();
-            out.close();
 
             JSONObject result = new JSONObject();
             result.put("success", true);
@@ -1597,8 +1600,8 @@ public class FileBridge {
     }
 
     private boolean copyUriToPath(Uri uri, String destPath) {
-        try {
-            java.io.InputStream is = activity.getContentResolver().openInputStream(uri);
+        // SEGURANÇA: try-with-resources para evitar file descriptor leak
+        try (java.io.InputStream is = activity.getContentResolver().openInputStream(uri)) {
             if (is == null) return false;
 
             String fileName = getFileNameFromUri(uri);
@@ -1613,14 +1616,13 @@ public class FileBridge {
                 }
             }
 
-            java.io.OutputStream os = new java.io.FileOutputStream(destFile);
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
+            try (java.io.OutputStream os = new java.io.FileOutputStream(destFile)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, bytesRead);
+                }
             }
-            os.close();
-            is.close();
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Erro ao copiar URI para destino: " + e.getMessage());
@@ -1816,9 +1818,9 @@ public class FileBridge {
      * Copia arquivo com progresso e cancelamento.
      */
     private boolean copyFileWithProgress(File source, File dest, OperationManager.TaskInfo taskInfo) throws OperationManager.CancellationException {
-        try {
-            java.io.FileInputStream fis = new java.io.FileInputStream(source);
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(dest);
+        // SEGURANÇA: try-with-resources para evitar file descriptor leak
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(source);
+             java.io.FileOutputStream fos = new java.io.FileOutputStream(dest)) {
 
             long totalSize = source.length();
             long copied = 0;
@@ -1833,8 +1835,6 @@ public class FileBridge {
             }
 
             fos.flush();
-            fos.close();
-            fis.close();
             dest.setLastModified(source.lastModified());
             return true;
         } catch (IOException e) {
@@ -1926,11 +1926,31 @@ public class FileBridge {
             return Environment.getExternalStorageDirectory();
         }
 
+        File file;
         if (path.startsWith("/")) {
-            return new File(path);
+            file = new File(path);
+        } else {
+            file = new File(Environment.getExternalStorageDirectory(), path);
         }
 
-        return new File(Environment.getExternalStorageDirectory(), path);
+        // SEGURANÇA: Validar que o path está dentro de roots permitidos
+        try {
+            String canonicalPath = file.getCanonicalPath();
+            File externalRoot = Environment.getExternalStorageDirectory();
+            String externalRootPath = externalRoot.getCanonicalPath();
+
+            // Permitir apenas paths dentro do armazenamento externo
+            if (!canonicalPath.startsWith(externalRootPath)) {
+                // Permitir /storage/ para SD/USB
+                if (!canonicalPath.startsWith("/storage/")) {
+                    return externalRoot;  // Fallback para raiz
+                }
+            }
+        } catch (Exception e) {
+            return Environment.getExternalStorageDirectory();  // Fallback seguro
+        }
+
+        return file;
     }
 
     private String formatSize(long bytes) {

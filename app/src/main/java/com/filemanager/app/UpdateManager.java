@@ -77,16 +77,6 @@ public class UpdateManager {
     }
 
     // ========================
-    //  CONFIGURAR URL DE ATUALIZAÇÃO
-    // ========================
-
-    @JavascriptInterface
-    public void setUpdateUrl(String url) {
-        this.updateUrl = url;
-        Log.d(TAG, "Update URL configurada: " + url);
-    }
-
-    // ========================
     //  OBTER URL DE ATUALIZAÇÃO
     // ========================
 
@@ -94,6 +84,9 @@ public class UpdateManager {
     public String getUpdateUrl() {
         return this.updateUrl;
     }
+
+    // NOTA: setUpdateUrl() foi removido por segurança (Audit C-06)
+    // A URL de atualização é hardcoded e não pode ser alterada via JS
 
     // ========================
     //  VERIFICAR ATUALIZAÇÃO
@@ -123,8 +116,13 @@ public class UpdateManager {
                 .getPackageInfo(activity.getPackageName(), 0);
             int currentVersionCode = pInfo.versionCode;
 
+            // SEGURANÇA: Validar que a URL é HTTPS
+            if (!updateUrl.startsWith("https://")) {
+                return buildUpdateResult(false, pInfo.versionName, currentVersionCode,
+                    null, null, "URL de atualização deve usar HTTPS");
+            }
+
             // Faz request HTTP para verificar versão
-            // Nota: Em produção, isso deveria ser feito em background
             java.net.URL url = new java.net.URL(updateUrl);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -412,8 +410,10 @@ public class UpdateManager {
 
     private void notifyJs(String callback, String data) {
         try {
-            final String js = "javascript:" + callback + "('" +
-                data.replace("'", "\\'") + "')";
+            // SEGURANÇA: Usar JSONObject para serialização segura
+            org.json.JSONObject jsonData = new org.json.JSONObject();
+            jsonData.put("data", data != null ? data : "");
+            final String js = "javascript:" + callback + "(" + jsonData.toString() + ")";
             activity.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
